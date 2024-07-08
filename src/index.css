@@ -1,0 +1,79 @@
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+.clip-path-polygon {
+    clip-path: polygon(0 99%, 0 0, 100% 0, 100% 100%, 47% 64%);
+  }
+  
+/* Tailwind CSS classes for responsiveness */
+@media (max-width: 768px) {
+  .navlinks {
+      gap: 8px;
+  }
+}
+
+@keyframes floatAnimation {
+  0% { transform: translateY(0); }
+  50% { transform: translateY(-15px); }
+  100% { transform: translateY(0); }
+}
+
+.floating-animation {
+  animation: floatAnimation 3s ease-in-out infinite;
+}
+@keyframes seaWavesAnimation {
+  0% {
+    transform: translate(0, 0);
+  }
+  50% {
+    transform: translate(0, -5px);
+  }
+  100% {
+    transform: translate(0, 0);
+  }
+}
+
+.sea-waves-animation {
+  animation: seaWavesAnimation 2s ease-in-out infinite;
+}
+.fixed {
+  position: fixed;
+}
+
+.top-0 {
+  top: 0;
+}
+
+.left-0 {
+  left: 0;
+}
+
+.w-full {
+  width: 100%;
+}
+
+.h-full {
+  height: 100%;
+}
+
+.bg-white {
+  background-color: white;
+}
+
+.transform {
+  transform: translateX(-100%);
+}
+
+.translate-x-0 {
+  transform: translateX(0);
+}
+
+.transition-transform {
+  transition: transform 0.3s ease-in-out;
+}
+
+.z-40 {
+  z-index: 40;
+}

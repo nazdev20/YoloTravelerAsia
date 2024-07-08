@@ -1,0 +1,38 @@
+/* Add this CSS to your existing stylesheet or create a new one */
+
+.container {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 0 20px;
+  }
+  
+  /* Adjust layout for large screens */
+  @media screen and (min-width: 768px) {
+    .grid-cols-3 {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 20px;
+    }
+  }
+  
+  /* Adjust layout for medium screens */
+  @media screen and (max-width: 767px) {
+    .grid-cols-3 {
+      display: flex;
+      flex-wrap: wrap;
+    }
+    .grid-cols-3 > * {
+      flex: 1 1 calc(50% - 10px);
+      margin-right: 20px;
+      margin-bottom: 20px;
+    }
+  }
+  
+  /* Adjust layout for small screens */
+  @media screen and (max-width: 575px) {
+    .grid-cols-3 > * {
+      flex: 1 1 100%;
+      margin-right: 0;
+    }
+  }
+  
