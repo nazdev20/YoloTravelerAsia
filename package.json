@@ -67,17 +67,12 @@
 
    
 
+  "@supabase/supabase-js": "^2.117.3",
+ 
+
+   
+
   "aos": "^2.3.4",
- 
-
-   
-
-  "firebase": "^10.12.2",
- 
-
-   
-
-  "firebaseui": "^6.1.0",
  
 
    

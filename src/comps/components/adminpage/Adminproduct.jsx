@@ -1,7 +1,5 @@
 import { useState, useEffect } from 'react';
-import { addDoc, collection, getDocs, deleteDoc, doc, updateDoc } from 'firebase/firestore';
-import { db, storage } from '../../../config/firebase-config';
-import { ref, uploadBytesResumable, getDownloadURL } from 'firebase/storage';
+import { deleteProduct, loadCategories, loadProducts, saveProduct, uploadCatalogImage } from '../../../lib/catalog';
 
 const AdminPage = () => {
   const [itemName, setItemName] = useState('');
@@ -35,12 +33,8 @@ const AdminPage = () => {
 
   const fetchCategories = async () => {
     try {
-      const querySnapshot = await getDocs(collection(db, 'Categories'));
-      const fetchedCategories = [];
-      querySnapshot.forEach((doc) => {
-        fetchedCategories.push(doc.data().name);
-      });
-      setCategories(fetchedCategories);
+      const fetchedCategories = await loadCategories();
+      setCategories(fetchedCategories.map((category) => category.name));
     } catch (error) {
       console.error('Error fetching categories:', error);
     }
@@ -76,9 +70,9 @@ const AdminPage = () => {
   };
 
   const handleAddOnsChange = (index, value, field) => {
-    const newAddOns = [...addOns];
-    newAddOns[index][field] = value;
-    setAddOns(newAddOns);
+    setAddOns((current) => current.map((addon, addonIndex) => (
+      addonIndex === index ? { ...addon, [field]: value } : addon
+    )));
   };
 
   const handleAddAddOn = () => {
@@ -125,25 +119,20 @@ const AdminPage = () => {
 
   const updateItem = async () => {
     try {
-      const updatedItem = {
+      const existingItem = items.find((item) => item.id === editingItemId);
+      await saveProduct({
+        id: editingItemId,
         name: editItemName,
-        adultPrice: parseFloat(editAdultPrice),
-        seniorPrice: parseFloat(editSeniorPrice),
-        childPrice: parseFloat(editChildPrice),
-        category: editItemCategory,
+        adultPrice: Number(editAdultPrice),
+        seniorPrice: Number(editSeniorPrice),
+        childPrice: Number(editChildPrice),
+        categoryName: editNewCategory || editItemCategory,
         description: editItemDescription,
         inputs: inputFields,
-        addOns: addOns,
+        addOns,
         highlights: editHighlights,
-      };
-
-      if (editNewCategory) {
-        updatedItem.category = editNewCategory;
-        await addDoc(collection(db, 'Categories'), { name: editNewCategory });
-        fetchCategories();
-      }
-
-      await updateDoc(doc(db, 'Product', editingItemId), updatedItem);
+        imageUrl: existingItem?.imageUrl,
+      });
       console.log('Item updated successfully');
 
       setEditingItemId(null);
@@ -155,7 +144,8 @@ const AdminPage = () => {
       setEditItemDescription('');
       setEditHighlights([]);
       setAddOns([]);
-      fetchItems();
+      setEditNewCategory('');
+      await Promise.all([fetchItems(), fetchCategories()]);
     } catch (error) {
       console.error('Error updating item:', error);
     }
@@ -163,12 +153,7 @@ const AdminPage = () => {
 
   const fetchItems = async () => {
     try {
-      const querySnapshot = await getDocs(collection(db, 'Product'));
-      const fetchedItems = [];
-      querySnapshot.forEach((doc) => {
-        fetchedItems.push({ id: doc.id, ...doc.data() });
-      });
-      setItems(fetchedItems);
+      setItems(await loadProducts());
     } catch (error) {
       console.error('Error fetching items:', error);
     }
@@ -181,10 +166,7 @@ const AdminPage = () => {
 
   const uploadImage = async (file) => {
     try {
-      const storageRef = ref(storage, 'images/' + file.name);
-      const snapshot = await uploadBytesResumable(storageRef, file);
-      const downloadURL = await getDownloadURL(snapshot.ref);
-      return downloadURL;
+      return await uploadCatalogImage(file);
     } catch (error) {
       console.error('Error uploading image:', error);
       throw error;
@@ -199,34 +181,21 @@ const AdminPage = () => {
       }
   
      
-      let categoryValue = '';
-      if (newCategory) {
-        categoryValue = newCategory;
-      } else if (itemCategory) {
-        categoryValue = itemCategory;
-      }
-  
+      const categoryValue = newCategory || itemCategory;
       const imageUrl = await uploadImage(image);
-      const newItem = {
+      await saveProduct({
         name: itemName,
         adultPrice: parseFloat(adultPrice),
         seniorPrice: parseFloat(seniorPrice),
         childPrice: parseFloat(childPrice),
-        category: categoryValue,
+        categoryName: categoryValue,
         description: itemDescription,
-        imageUrl: imageUrl,
+        imageUrl,
         inputs: inputFields,
-        addOns: addOns,
+        addOns,
         highlights: highlights,
-      };
-  
-      await addDoc(collection(db, 'Product'), newItem);
+      });
       console.log('Item added successfully to the database');
-  
-      if (newCategory) {
-        await addDoc(collection(db, 'Categories'), { name: newCategory });
-        fetchCategories();
-      }
   
       setItemName('');
       setAdultPrice('');
@@ -245,7 +214,7 @@ const AdminPage = () => {
       setHighlights([]);
       setNewCategory('');
   
-      fetchItems();
+      await Promise.all([fetchItems(), fetchCategories()]);
     } catch (error) {
       console.error('Error adding item:', error);
     }
@@ -253,7 +222,7 @@ const AdminPage = () => {
 
   const deleteItem = async (id) => {
     try {
-      await deleteDoc(doc(db, 'Product', id));
+      await deleteProduct(id);
       console.log('Item deleted successfully');
       fetchItems();
     } catch (error) {
@@ -371,6 +340,32 @@ const AdminPage = () => {
                 + Add Highlight
               </button>
             </div>
+
+            <div>
+              <h3 className="font-bold mb-2">Add-ons</h3>
+              {addOns.map((addon, index) => (
+                <div key={index} className="mb-2 flex gap-2">
+                  <input
+                    type="text"
+                    placeholder="Add-on name"
+                    value={addon.name}
+                    onChange={(event) => handleAddOnsChange(index, event.target.value, 'name')}
+                    className="flex-1 rounded border border-gray-300 px-3 py-2"
+                  />
+                  <input
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    placeholder="Price"
+                    value={addon.addOnsPrice}
+                    onChange={(event) => handleAddOnsChange(index, event.target.value, 'addOnsPrice')}
+                    className="w-28 rounded border border-gray-300 px-3 py-2"
+                  />
+                  <button onClick={() => handleRemoveAddOn(index)} className="rounded bg-red-600 px-3 text-white">Remove</button>
+                </div>
+              ))}
+              <button onClick={handleAddAddOn} className="rounded bg-blue-600 px-3 py-2 text-white">Add add-on</button>
+            </div>
   
             
           </div>
@@ -479,6 +474,17 @@ const AdminPage = () => {
           <button onClick={handleAddEditHighlight} className="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded">
             + Add Highlight
           </button>
+          <div className="my-3">
+            <h3 className="font-bold">Add-ons</h3>
+            {addOns.map((addon, index) => (
+              <div key={index} className="mb-2 flex gap-2">
+                <input type="text" placeholder="Add-on name" value={addon.name} onChange={(event) => handleAddOnsChange(index, event.target.value, 'name')} className="rounded border px-2 py-1" />
+                <input type="number" min="0" step="0.01" placeholder="Price" value={addon.addOnsPrice} onChange={(event) => handleAddOnsChange(index, event.target.value, 'addOnsPrice')} className="w-28 rounded border px-2 py-1" />
+                <button onClick={() => handleRemoveAddOn(index)} className="rounded bg-red-600 px-2 text-white">Remove</button>
+              </div>
+            ))}
+            <button onClick={handleAddAddOn} className="rounded bg-blue-600 px-3 py-2 text-white">Add add-on</button>
+          </div>
           {inputFields.map((input, index) => (
             <div key={index}>
               <input

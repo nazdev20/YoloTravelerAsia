@@ -1,6 +1,5 @@
 import { useState, useEffect } from 'react';
-import { collection, getDocs } from 'firebase/firestore';
-import { db } from '../../../config/firebase-config';
+import { loadPackages } from '../../../lib/catalog';
 import Popup from '../Packagepopup';
 import 'aos/dist/aos.css';
 import AOS from 'aos';
@@ -17,9 +16,7 @@ const UserViewPage = () => {
 
   const fetchItems = async () => {
     try {
-      const querySnapshot = await getDocs(collection(db, 'Package'));
-      const fetchedItems = querySnapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
-      setItems(fetchedItems);
+      setItems(await loadPackages());
     } catch (error) {
       console.error('Error fetching items:', error);
     }

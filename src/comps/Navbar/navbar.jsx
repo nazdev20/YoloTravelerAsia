@@ -1,12 +1,10 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { Link, useLocation } from 'react-router-dom';
+import { useState, useRef } from 'react';
+import { Link } from 'react-router-dom';
 import { HiMenuAlt3, HiMenuAlt1 } from 'react-icons/hi';
 import ResponsiveMenu from './ResponsiveMenu';
 import { FaShoppingCart } from 'react-icons/fa';
-import { useGetUserInfo } from "../../hooks/useGetUserInfo";
 import { useNavigate } from "react-router-dom";
-import { getAuth, signInWithPopup, signOut } from "firebase/auth";
-import { auth, provider } from '../../config/firebase-config'; 
+import { useAuth } from '../../hooks/useAuth';
 
 const Navlinks = [
     { id: 1, name: 'Home', link: '/' },
@@ -17,10 +15,9 @@ const Navlinks = [
 ];
 
 const Navbar = () => {
-    const { name, profilePhoto, isAuthenticated } = useGetUserInfo(); 
+    const { user, signInWithGoogle, signOut } = useAuth();
     const [showMenu, setShowMenu] = useState(false);
     const navigate = useNavigate();
-    const location = useLocation();
     const navbarRef = useRef(null);
 
     const toggleMenu = () => {
@@ -76,6 +73,19 @@ const Navbar = () => {
                         onClick={handleCartClick}
                        
                     />
+                    <button
+                        onClick={async () => {
+                            try {
+                                if (user) await signOut();
+                                else await signInWithGoogle();
+                            } catch (error) {
+                                console.error('Authentication failed:', error);
+                            }
+                        }}
+                        className="hidden md:block text-white font-semibold"
+                    >
+                        {user ? 'Sign out' : 'Sign in'}
+                    </button>
 
 
                     <div className="md:hidden ml-4 ">

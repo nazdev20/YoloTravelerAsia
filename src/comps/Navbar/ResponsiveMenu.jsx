@@ -3,10 +3,7 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
 import { FaUserCircle } from 'react-icons/fa';
-import { useGetUserInfo } from "../../hooks/useGetUserInfo";
-import { signInWithPopup, signOut } from 'firebase/auth';
-import { auth } from "../../config/firebase-config";
-import { useNavigate } from "react-router-dom";
+import { useAuth } from '../../hooks/useAuth';
 
 const Navlinks = [
   { id: 1, name: 'Home', link: '/' },
@@ -17,25 +14,12 @@ const Navlinks = [
 ];
 
 const ResponsiveMenu = ({ showMenu }) => {
-  const { name, profilePhoto } = useGetUserInfo();
-  const navigate = useNavigate();
+  const { user, signInWithGoogle, signOut } = useAuth();
 
-  const handleSignIn = () => {
-    signInWithPopup(auth)
-      .then(() => {
-        console.log('Sign-in successful!');
-      })
-      .catch((error) => {
-        console.error('Error signing in:', error.message);
-      });
-  };
-
-  const signUserOut = async () => {
+  const handleAuth = async () => {
     try {
-      await signOut(auth);
-      localStorage.clear();
-      navigate("/");
-      window.location.reload();
+      if (user) await signOut();
+      else await signInWithGoogle();
     } catch (err) {
       console.error(err);
     }
@@ -48,10 +32,10 @@ const ResponsiveMenu = ({ showMenu }) => {
       ${showMenu ? "left-0" : '-left-[100%]'}`}>
       <div>
         <div className='flex items-center justify-start gap-3'>
-          <img src={profilePhoto} alt="Profile" className="h-10 w-10 object-cover rounded-full" />
+          {user?.user_metadata?.avatar_url && <img src={user.user_metadata.avatar_url} alt="Profile" className="h-10 w-10 object-cover rounded-full" />}
           <div>
-            <h1 className='text-lg'>Hello {name}</h1>
-            <h1 className='text-sm text-slate-500'>Premium User</h1>
+            <h1 className='text-lg'>Hello {user?.user_metadata?.name ?? user?.email ?? 'traveler'}</h1>
+            <h1 className='text-sm text-slate-500'>{user ? 'Signed in' : 'Guest'}</h1>
           </div>
         </div>
         <nav className='mt-12'>
@@ -64,13 +48,8 @@ const ResponsiveMenu = ({ showMenu }) => {
               </li>
             ))}
             <li className='py-4'>
-              <button onClick={handleSignIn} className='text-lg font-medium text-black dark:text-white duration-300'>
-                Sign In
-              </button>
-            </li>
-            <li className='py-4'>
-              <button onClick={signUserOut} className='text-lg font-medium text-black dark:text-white duration-300'>
-                Sign Out
+              <button onClick={handleAuth} className='text-lg font-medium text-black dark:text-white duration-300'>
+                {user ? 'Sign Out' : 'Sign In with Google'}
               </button>
             </li>
           </ul>

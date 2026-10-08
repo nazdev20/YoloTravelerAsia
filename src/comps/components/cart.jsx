@@ -1,82 +1,16 @@
-import React, { useEffect, useState } from 'react';
-import { collection, query, where, getDocs, deleteDoc, doc, updateDoc, addDoc, Timestamp } from 'firebase/firestore';
-import { db } from '../../config/firebase-config';
-import { useGetUserInfo } from '../../hooks/useGetUserInfo';
+import { useEffect, useState } from 'react';
+import { supabase } from '../../config/supabase';
+import { useGetTransactions } from '../../hooks/useGetTransactions';
 import Navbar from '../Navbar/navbar';
 import CheckoutForm from './CheckoutForm';
 
 const TransactionList = () => {
-  const { userID } = useGetUserInfo();
+  const { cartItems: loadedCartItems } = useGetTransactions();
   const [cartItems, setCartItems] = useState([]);
-  const [totalAmount, setTotalAmount] = useState(0);
   const [selectedItems, setSelectedItems] = useState([]);
   const [isCheckingOut, setIsCheckingOut] = useState(false);
 
-  useEffect(() => {
-    const fetchCartItems = async () => {
-      if (userID) {
-        console.log('Fetching cart items for userID:', userID);
-
-        const cartQuery = query(collection(db, 'cart'), where('userID', '==', userID));
-
-        try {
-          const snapshot = await getDocs(cartQuery);
-          console.log('Number of cart documents:', snapshot.size);
-
-          const cartData = snapshot.docs.map(doc => {
-            const data = doc.data();
-            const {
-              name,
-              description,
-              amountToPay,
-              imageUrl,
-              ageBracket,
-              startDate,
-              endDate,
-              quantity,
-              type,
-              adultPrice,
-              childPrice,
-              seniorPrice,
-              date
-            } = data;
-
-            const formattedStartDate = startDate instanceof Timestamp ? startDate.toDate() : new Date(startDate);
-            const formattedEndDate = endDate instanceof Timestamp ? endDate.toDate() : new Date(endDate);
-            const formattedDate = date instanceof Timestamp ? date.toDate() : new Date(date);
-
-            return {
-              id: doc.id,
-              name,
-              description,
-              amountToPay,
-              imageUrl,
-              ageBracket,
-              startDate: isValidDate(formattedStartDate) ? formattedStartDate : null,
-              endDate: isValidDate(formattedEndDate) ? formattedEndDate : null,
-              date: isValidDate(formattedDate) ? formattedDate : null,
-              quantity,
-              type,
-              adultPrice,
-              childPrice,
-              seniorPrice
-            };
-          });
-
-          setCartItems(cartData);
-          console.log('Cart Data:', cartData);
-        } catch (error) {
-          console.error('Error fetching cart items:', error);
-        }
-      }
-    };
-
-    fetchCartItems();
-  }, [userID]);
-
-  const isValidDate = (date) => {
-    return date instanceof Date && !isNaN(date);
-  };
+  useEffect(() => setCartItems(loadedCartItems), [loadedCartItems]);
 
   const removeFromCart = async (itemId) => {
     try {
@@ -89,9 +23,8 @@ const TransactionList = () => {
         return;
       }
 
-      const itemRef = doc(db, 'cart', itemId);
-
-      await deleteDoc(itemRef);
+      const { error } = await supabase.from('cart_items').delete().eq('id', itemId);
+      if (error) throw error;
       console.log(`Removed item from cart with ID: ${itemId}`);
 
       setCartItems(prevCartItems => prevCartItems.filter(item => item.id !== itemId));
@@ -105,7 +38,6 @@ const TransactionList = () => {
 
   const updateQuantity = async (itemId, newQuantity) => {
     try {
-      const cartDocRef = doc(db, 'cart', itemId);
       const updatedItem = cartItems.find(item => item.id === itemId);
 
       if (!updatedItem) {
@@ -113,7 +45,8 @@ const TransactionList = () => {
         return;
       }
 
-      await updateDoc(cartDocRef, { quantity: newQuantity });
+      const { error } = await supabase.from('cart_items').update({ quantity: newQuantity }).eq('id', itemId);
+      if (error) throw error;
 
       setCartItems(prevCartItems =>
         prevCartItems.map(item =>
@@ -143,27 +76,12 @@ const TransactionList = () => {
     }
   };
 
-  const handleCheckout = async (checkoutData) => {
-    try {
-      await addDoc(collection(db, 'checkout'), checkoutData);
-      console.log('Checkout successful');
-
-      const updatedCartItems = cartItems.map(item => ({
-        ...item,
-        quantity: 0
-      }));
-      setCartItems(updatedCartItems);
-      setSelectedItems([]);
-      setIsCheckingOut(false);
-    } catch (error) {
-      console.error('Error during checkout:', error);
-    }
-  };
-
   const calculateTotalAmount = () => {
     return selectedItems.reduce((total, itemId) => {
       const item = cartItems.find(item => item.id === itemId);
-      return total + (item ? item.amountToPay * item.quantity : 0);
+      if (!item) return total;
+      const addonsTotal = (item.selectedAddOns ?? []).reduce((sum, addon) => sum + Number(addon.price) * addon.quantity, 0);
+      return total + Number(item.amountToPay) * item.quantity + addonsTotal;
     }, 0);
   };
 
@@ -175,7 +93,6 @@ const TransactionList = () => {
           <CheckoutForm
             cartItems={cartItems.filter(item => selectedItems.includes(item.id))}
             totalAmount={calculateTotalAmount()}
-            onCheckout={handleCheckout}
             onCancel={() => setIsCheckingOut(false)}
           />
         ) : (
@@ -207,20 +124,14 @@ const TransactionList = () => {
                         <div>
                           <h3 className="text-lg font-bold">{item.name}</h3>
                           <p className="text-gray-700">Price: ₱{item.amountToPay}</p>
-                          {item.startDate && isValidDate(item.startDate) && (
-                            <p className="text-gray-700">Start Date: {item.startDate.toLocaleDateString()}</p>
-                          )}
-                          {item.endDate && isValidDate(item.endDate) && (
-                            <p className="text-gray-700">End Date: {item.endDate.toLocaleDateString()}</p>
-                          )}
-                          {item.date && isValidDate(item.date) && (
-                            <p className="text-gray-700">Date: {item.date.toLocaleDateString()}</p>
-                          )}
+                          {item.startDate && <p className="text-gray-700">Start Date: {new Date(item.startDate).toLocaleDateString()}</p>}
+                          {item.endDate && <p className="text-gray-700">End Date: {new Date(item.endDate).toLocaleDateString()}</p>}
+                          {item.selectedDate && <p className="text-gray-700">Date: {new Date(item.selectedDate).toLocaleDateString()}</p>}
                         </div>
                       </div>
                       <div className="flex items-center">
                         <label htmlFor={`quantity-${item.id}`} className="text-gray-700 mr-2">Qty:</label>
-                        <input type="number" id={`quantity-${item.id}`} value={item.quantity} onChange={(e) => updateQuantity(item.id, parseInt(e.target.value))} min="1" className="w-12 border border-gray-300 rounded-md py-1 px-2 mr-4" />
+                        <input type="number" id={`quantity-${item.id}`} value={item.quantity} onChange={(e) => updateQuantity(item.id, Math.max(1, Number.parseInt(e.target.value, 10) || 1))} min="1" className="w-12 border border-gray-300 rounded-md py-1 px-2 mr-4" />
                         <button onClick={() => removeFromCart(item.id)} className="text-red-500">Remove</button>
                       </div>
                     </div>

@@ -1,54 +1,49 @@
 import { useEffect, useState } from 'react';
-import { collection, getDocs } from 'firebase/firestore';
-import { db } from '../../../config/firebase-config';
-import { Timestamp } from 'firebase/firestore';
+import { supabase } from '../../../config/supabase';
+import { useGetUserInfo } from '../../../hooks/useGetUserInfo';
 
 const TransactionHistory = () => {
   const [transactions, setTransactions] = useState([]); 
   const [selectedReceipt, setSelectedReceipt] = useState(null); 
+  const { userID } = useGetUserInfo();
 
 
   useEffect(() => {
     const fetchTransactions = async () => {
-      try {
-  
-        const querySnapshot = await getDocs(collection(db, 'checkout'));
-      
-        const transactionData = querySnapshot.docs.map(doc => doc.data());
-        setTransactions(transactionData.map(transaction => {
-          const formattedTransaction = formatTransactionDates(transaction);
-          return formattedTransaction;
-        }));
-      } catch (error) {
-        console.error('Error fetching transactions:', error);
+      if (!userID) {
+        setTransactions([]);
+        return;
       }
+      const { data, error } = await supabase.from('orders')
+        .select('id,total_amount,selected_date,created_at,status,order_items(id,product_name,quantity,amount_to_pay,details,order_item_addons(addon_name,addon_price,quantity))')
+        .eq('user_id', userID)
+        .order('created_at', { ascending: false });
+      if (error) {
+        console.error('Error fetching transactions:', error);
+        return;
+      }
+      setTransactions(data.map((order) => ({
+        id: order.id,
+        totalAmount: Number(order.total_amount),
+        startDate: order.selected_date ? new Date(order.selected_date).toLocaleString() : 'N/A',
+        status: order.status,
+        selectedOrders: (order.order_items ?? []).map((item) => ({
+          ...item.details,
+          name: item.product_name,
+          quantity: item.quantity,
+          price: Number(item.amount_to_pay) * item.quantity + (item.order_item_addons ?? []).reduce((sum, addon) => sum + Number(addon.addon_price) * addon.quantity, 0),
+          addons: item.order_item_addons ?? [],
+          imageUrl: item.details?.imageUrl,
+        })),
+      })));
     };
 
     fetchTransactions();
-  }, []);
-
-
-  const formatTransactionDates = (transaction) => {
-    try {
-      
-      const formattedStartDate = transaction.startDate instanceof Timestamp ? transaction.startDate.toDate().toLocaleString() : 'N/A';
-      const formattedEndDate = transaction.endDate instanceof Timestamp ? transaction.endDate.toDate().toLocaleString() : 'N/A';
-
-      return {
-        ...transaction,
-        startDate: formattedStartDate,
-        endDate: formattedEndDate
-      };
-    } catch (error) {
-      console.error('Error formatting transaction dates:', error);
-      return transaction;
-    }
-  };
+  }, [userID]);
 
 
   const handleViewReceipt = (selectedOrders, startDate, endDate, totalAmount) => {
-    const formattedDates = formatTransactionDates({ startDate, endDate });
-    setSelectedReceipt({ selectedOrders, ...formattedDates, totalAmount });
+    setSelectedReceipt({ selectedOrders, startDate, endDate, totalAmount });
   };
 
   
@@ -80,6 +75,7 @@ const TransactionHistory = () => {
               </td>
               <td className="border border-gray-300 px-4 py-2">{transaction.totalAmount}</td>
               <td className="border border-gray-300 px-4 py-2">
+                {transaction.status && <span className="mr-2 capitalize">{transaction.status}</span>}
                 <button className="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded" onClick={() => handleViewReceipt(transaction.selectedOrders, transaction.startDate, transaction.endDate, transaction.totalAmount)}> 
                  View Receipt
                 </button>

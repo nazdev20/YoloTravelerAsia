@@ -1,32 +1,30 @@
-import React, { useState, useEffect } from 'react';
-import { auth } from '../../config/firebase-config';
-import { collection, setDoc, Timestamp, deleteDoc, doc } from 'firebase/firestore';
-import { getStorage, ref, uploadBytes, getDownloadURL } from 'firebase/storage';
-import { db } from '../../config/firebase-config';
-import { format } from 'date-fns';
+import { useState, useEffect } from 'react';
+import { supabase } from '../../config/supabase';
+import { useAuth } from '../../hooks/useAuth';
 
-const CheckoutForm = ({ cartItems, totalAmount, onCheckout, onCancel }) => {
+const CheckoutForm = ({ cartItems, totalAmount, onCancel }) => {
   const [name, setName] = useState('');
   const [address, setAddress] = useState('');
   const [email, setEmail] = useState('');
   const [paymentImage, setPaymentImage] = useState(null);
   const [termsChecked, setTermsChecked] = useState(false);
   const [selectedDate, setSelectedDate] = useState('');
-  const [selectedPaymentMethod, setSelectedPaymentMethod] = useState('PaymentMethod');
+  const [selectedPaymentMethod, setSelectedPaymentMethod] = useState('');
   const [showDeposit, setShowDeposit] = useState(false); 
+  const { user } = useAuth();
   useEffect(() => {
-    const user = auth.currentUser;
     if (user) {
-      setEmail(user.email);
+      setEmail(user.email ?? '');
+      setName(user.user_metadata?.full_name ?? user.user_metadata?.name ?? '');
     }
-  }, []);
+  }, [user]);
 
   useEffect(() => {
     if (cartItems.length > 0) {
       const selectedItem = cartItems[0];
-      const dateToFormat = selectedItem.date || selectedItem.startDate;
+      const dateToFormat = selectedItem.selectedDate || selectedItem.date || selectedItem.startDate;
       if (dateToFormat) {
-        setSelectedDate(format(new Date(dateToFormat), 'MMMM dd, yyyy'));
+        setSelectedDate(new Date(dateToFormat).toISOString());
       }
     }
   }, [cartItems]);
@@ -67,67 +65,72 @@ const CheckoutForm = ({ cartItems, totalAmount, onCheckout, onCancel }) => {
     }
   
     try {
-      let downloadURL = '';
+      if (!user) throw new Error('Please sign in before checking out.');
+      let paymentImagePath = '';
   
       if (paymentImage) {
-        const storage = getStorage();
-        const storageRef = ref(storage, `payment_images/${paymentImage.name}`);
-        const snapshot = await uploadBytes(storageRef, paymentImage);
-        downloadURL = await getDownloadURL(snapshot.ref);
+        const path = `${user.id}/${crypto.randomUUID()}-${paymentImage.name.replace(/[^a-zA-Z0-9._-]/g, '-')}`;
+        const { error: uploadError } = await supabase.storage.from('payment-images').upload(path, paymentImage);
+        if (uploadError) throw uploadError;
+        paymentImagePath = path;
       }
   
-      const selectedDateObject = new Date(selectedDate);
-      if (isNaN(selectedDateObject.getTime())) {
-        alert('Invalid selectedDate format');
-        return;
-      }
-  
-      const checkoutData = {
-        name: name.trim() || '',
-        address: address.trim() || '',
-        email: email.trim() || '',
-        paymentMethod: selectedPaymentMethod,
-        cartItems: cartItems.map(item => ({
-          id: item.id || '',
-          name: item.name || '',
-          location: item.location || '',
-          quantity: item.quantity || 0,
-          amountToPay: item.amountToPay || 0,
-          imageUrl: item.imageUrl || ''
-        })),
-        totalAmount: totalAmount || 0,
-        paymentImage: downloadURL,
-        selectedDate: Timestamp.fromDate(selectedDateObject),
-        createdAt: Timestamp.fromDate(new Date())
-      };
-  
-      Object.keys(checkoutData).forEach(key => {
-        if (checkoutData[key] === undefined) {
-          delete checkoutData[key];
+      const { data: order, error: orderError } = await supabase.from('orders').insert({
+        user_id: user.id,
+        customer_name: name.trim(),
+        customer_email: email.trim(),
+        customer_address: address.trim(),
+        payment_method: selectedPaymentMethod,
+        total_amount: totalAmount,
+        payment_image_url: paymentImagePath,
+        selected_date: selectedDate ? new Date(selectedDate).toISOString() : null,
+      }).select('id').single();
+      if (orderError) throw orderError;
+
+      for (const item of cartItems) {
+        const { data: orderItem, error: itemError } = await supabase.from('order_items').insert({
+          order_id: order.id,
+          product_id: item.productId ?? null,
+          package_id: item.packageId ?? null,
+          product_name: item.name,
+          quantity: item.quantity,
+          amount_to_pay: item.amountToPay,
+          details: item,
+        }).select('id').single();
+        if (itemError) throw itemError;
+
+        const selectedAddOns = item.selectedAddOns ?? [];
+        if (selectedAddOns.length) {
+          const { error: addonsError } = await supabase.from('order_item_addons').insert(selectedAddOns.map((addon) => ({
+            order_item_id: orderItem.id,
+            addon_id: addon.id,
+            addon_name: addon.name,
+            addon_price: addon.price,
+            quantity: addon.quantity,
+          })));
+          if (addonsError) throw addonsError;
         }
-      });
-  
-      checkoutData.cartItems = checkoutData.cartItems.map(item => {
-        Object.keys(item).forEach(key => {
-          if (item[key] === undefined) {
-            item[key] = '';
-          }
-        });
-        return item;
-      });
-  
-      const docRef = doc(db, 'checkout', name);
-      await setDoc(docRef, checkoutData);
-      console.log('Checkout successful with ID: ', name);
+
+        const inputValues = item.inputValues ?? [];
+        if (inputValues.length) {
+          const { error: inputsError } = await supabase.from('order_item_inputs').insert(inputValues.map((input) => ({
+            order_item_id: orderItem.id,
+            input_name: input.name,
+            input_value: input.value,
+          })));
+          if (inputsError) throw inputsError;
+        }
+      }
+
       alert('Thank you for booking. Please wait until we process your needs.');
       for (const item of cartItems) {
-        const itemDocRef = doc(db, 'cart', item.id);
-        await deleteDoc(itemDocRef);
+        const { error: deleteError } = await supabase.from('cart_items').delete().eq('id', item.id);
+        if (deleteError) throw deleteError;
       }
   
       window.location.reload(); 
     } catch (error) {
-      console.error('Error adding checkout to Firestore: ', error);
+      console.error('Error creating order in Supabase: ', error);
       alert('There was an error processing your checkout. Please try again.');
     }
   };
@@ -202,7 +205,7 @@ const CheckoutForm = ({ cartItems, totalAmount, onCheckout, onCancel }) => {
                 className="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline"
                 required
               >
-                <option value="PaymentMethod">Select Payment Method</option>
+                <option value="">Select Payment Method</option>
                 <option value="GCash">GCash</option>
                 <option value="PayPal">PayPal</option>
                 <option value="PayMaya">PayMaya</option>

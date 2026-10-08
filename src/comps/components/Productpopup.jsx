@@ -4,16 +4,11 @@ import 'react-datepicker/dist/react-datepicker.css';
 import ConfirmationModal from './confirmationmodal'; // Corrected import name
 import { useAddTransaction } from '../../hooks/useAddTransaction';
 import { useAuth } from '../../hooks/useAuth';
-import { useNavigate } from 'react-router-dom';
-import { signInWithPopup } from 'firebase/auth';
-import { collection, getDocs } from 'firebase/firestore';
-import { db, auth, provider } from '../../config/firebase-config';
 import { FaMapMarkerAlt } from 'react-icons/fa';
 
 const Popup = ({ item, onClose }) => {
-  const navigate = useNavigate();
   const { addTransaction } = useAddTransaction();
-  const { user } = useAuth();
+  const { user, signInWithGoogle } = useAuth();
   const [startDate, setStartDate] = useState(new Date());
   const [endDate, setEndDate] = useState(new Date());
   const [prices, setPrices] = useState({
@@ -26,49 +21,13 @@ const Popup = ({ item, onClose }) => {
     child: 0,
     senior: 0,
   });
+  const [addonQuantities, setAddonQuantities] = useState({});
   const [showSignInConfirmation, setShowSignInConfirmation] = useState(false);
   const [amountToPay, setAmountToPay] = useState(0);
-
+  const [inputValues, setInputValues] = useState(() => (item.inputs ?? []).map(() => ''));
   useEffect(() => {
-    fetchPrices();
-  }, []);
-
-  const fetchPrices = async () => {
-    try {
-      const productsRef = collection(db, 'Product');
-      const querySnapshot = await getDocs(productsRef);
-      querySnapshot.forEach((doc) => {
-        const product = doc.data();
-        if (product.name === item.name) {
-          setPrices({
-            adult: product.adultPrice,
-            child: product.childPrice,
-            senior: product.seniorPrice,
-          });
-        }
-      });
-    } catch (error) {
-      console.error("Error fetching prices:", error);
-    }
-  };
-
-  const signInWithGoogle = async () => {
-    try {
-      const result = await signInWithPopup(auth, provider);
-      const user = result.user;
-      const authInfo = {
-        userID: user.uid,
-        name: user.displayName,
-        profilePhoto: user.photoURL,
-        isAuth: true,
-      };
-      localStorage.setItem("auth", JSON.stringify(authInfo));
-      navigate("/");
-      window.location.reload();
-    } catch (error) {
-      console.log(error.message);
-    }
-  };
+    setPrices({ adult: item.adultPrice ?? 0, child: item.childPrice ?? 0, senior: item.seniorPrice ?? 0 });
+  }, [item]);
 
   const handleStartDateChange = (date) => {
     setStartDate(date);
@@ -86,7 +45,7 @@ const Popup = ({ item, onClose }) => {
     calculateAmountToPay(startDate, date, quantities);
   };
 
-  const calculateAmountToPay = (start, end, qty) => {
+  const calculateAmountToPay = (start, end, qty, addons = addonQuantities) => {
     const oneDay = 24 * 60 * 60 * 1000;
     const startDateObj = new Date(start);
     const endDateObj = new Date(end);
@@ -96,12 +55,14 @@ const Popup = ({ item, onClose }) => {
       daysDifference = 1;
     }
 
-    const total = (prices.adult * qty.adult + prices.child * qty.child + prices.senior * qty.senior) * daysDifference;
+    const addonTotal = (item.addOns ?? []).reduce((sum, addon) => sum + Number(addon.addOnsPrice) * (addons[addon.id] ?? 0), 0);
+    const total = ((prices.adult * qty.adult + prices.child * qty.child + prices.senior * qty.senior) * daysDifference) + addonTotal;
     setAmountToPay(total);
   };
 
   const handleQuantityChange = (category, value) => {
-    const newQuantities = { ...quantities, [category]: value ? 1 : 0 };
+    const count = Math.max(0, Number(value) || 0);
+    const newQuantities = { ...quantities, [category]: count };
     setQuantities(newQuantities);
     calculateAmountToPay(startDate, endDate, newQuantities);
   };
@@ -119,28 +80,40 @@ const Popup = ({ item, onClose }) => {
         return;
       }
 
-      const totalPrice = Object.keys(quantities).reduce((total, category) => {
-        return total + quantities[category] * prices[category];
-      }, 0);
-
       const category = {};
       Object.keys(quantities).forEach((key) => {
         if (quantities[key] > 0) {
           category[key] = quantities[key];
         }
       });
+      const selectedAddOns = (item.addOns ?? [])
+        .filter((addon) => addonQuantities[addon.id] > 0)
+        .map((addon) => ({
+          id: addon.id,
+          name: addon.name,
+          price: Number(addon.addOnsPrice),
+          quantity: addonQuantities[addon.id],
+        }));
+      const participantCount = Object.values(quantities).reduce((sum, count) => sum + count, 0);
+      const selectedAddOnTotal = selectedAddOns.reduce((sum, addon) => sum + addon.price * addon.quantity, 0);
 
       await addTransaction({
-        name: item.name,
-        description: item.description,
-        price: totalPrice,
-        totalAmountToPay: amountToPay,
-        imageUrl: item.imageUrl,
-        startDate: startDate,
-        endDate: endDate,
-        Agebracket: category,
-        amountToPay: amountToPay,
-        quantity: Object.values(quantities).reduce((a, b) => a + b, 0),
+        itemId: item.id,
+        type: 'product',
+        amountToPay: (amountToPay - selectedAddOnTotal) / Math.max(1, participantCount),
+        quantity: participantCount,
+        details: {
+          name: item.name,
+          description: item.description,
+          imageUrl: item.imageUrl,
+          startDate: startDate.toISOString(),
+          endDate: endDate.toISOString(),
+          ageBracket: category,
+          quantityBreakdown: quantities,
+          bookingTotal: amountToPay,
+          selectedAddOns,
+          inputValues: (item.inputs ?? []).map((name, index) => ({ name, value: inputValues[index] ?? '' })),
+        },
       });
       alert(`Added ${item.name} to cart`);
       onClose();
@@ -180,10 +153,10 @@ const Popup = ({ item, onClose }) => {
                           id={`${category}-checkbox`}
                           className="mr-2"
                           checked={quantities[category] > 0}
-                          onChange={(e) => handleQuantityChange(category, e.target.checked)}
+                          onChange={(e) => handleQuantityChange(category, e.target.checked ? Math.max(1, quantities[category]) : 0)}
                         />
                         <label htmlFor={`${category}-checkbox`} className="mr-2 text-gray-500">
-                          {category.charAt(0).toUpperCase() + category.slice(1)} (₱{prices[category].toFixed(2)})
+                          {category.charAt(0).toUpperCase() + category.slice(1)} (₱{Number(prices[category]).toFixed(2)})
                         </label>
                         <input
                           type="number"
@@ -202,6 +175,28 @@ const Popup = ({ item, onClose }) => {
                     Description: {item.description}
                   </label>
                 </div>
+                {(item.addOns ?? []).length > 0 && (
+                  <div className="col-span-2">
+                    <h3 className="font-semibold">Add-ons</h3>
+                    {item.addOns.map((addon) => (
+                      <label key={addon.id} className="mt-2 flex items-center justify-between gap-3 text-sm">
+                        <span>{addon.name} (₱{Number(addon.addOnsPrice).toFixed(2)})</span>
+                        <input
+                          aria-label={`${addon.name} quantity`}
+                          type="number"
+                          min="0"
+                          value={addonQuantities[addon.id] ?? 0}
+                          onChange={(event) => {
+                            const nextAddOns = { ...addonQuantities, [addon.id]: Math.max(0, Number(event.target.value) || 0) };
+                            setAddonQuantities(nextAddOns);
+                            calculateAmountToPay(startDate, endDate, quantities, nextAddOns);
+                          }}
+                          className="w-20 rounded border p-2"
+                        />
+                      </label>
+                    ))}
+                  </div>
+                )}
                 <div className="mt-4">
                   <label htmlFor="start-date" className="text-sm text-gray-500">Select start date:</label>
                   <DatePicker
@@ -225,13 +220,19 @@ const Popup = ({ item, onClose }) => {
                 </div>
                 <div className="flex flex-col mt-2 col-span-2">
                   <span className="font-semibold">Highlights:</span>
-                  {item.inputs && item.inputs.map((input, index) => (
+                  {item.highlights && item.highlights.map((input, index) => (
                     <div key={index} className="flex items-center">
                       <FaMapMarkerAlt className="mr-1" />
                       <span>{input}</span>
                     </div>
                   ))}
                 </div>
+                {(item.inputs ?? []).map((input, index) => (
+                  <label key={`${input}-${index}`} className="col-span-2 text-sm text-gray-600">
+                    {input}
+                    <input value={inputValues[index] ?? ''} onChange={(event) => setInputValues((values) => values.map((value, valueIndex) => valueIndex === index ? event.target.value : value))} className="mt-1 block w-full rounded border p-2" />
+                  </label>
+                ))}
               </div>
             </form>
           </div>

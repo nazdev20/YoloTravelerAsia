@@ -1,8 +1,6 @@
 /* eslint-disable no-unused-vars */
 import { useState, useEffect } from 'react';
-import { addDoc, collection, getDocs, deleteDoc, doc, updateDoc } from 'firebase/firestore';
-import { db, storage } from '../../../config/firebase-config';
-import { ref, uploadBytesResumable, getDownloadURL } from 'firebase/storage';
+import { deletePackage, loadPackages, savePackage, uploadCatalogImage } from '../../../lib/catalog';
 import './admin.css'
 
 const Package = () => {
@@ -18,6 +16,7 @@ const Package = () => {
   const [editItemName, setEditItemName] = useState('');
   const [editItemPrice, setEditItemPrice] = useState('');
   const [editItemCategory, setEditItemCategory] = useState('');
+  const [editNewCategory, setEditNewCategory] = useState('');
   const [editItemDescription, setEditItemDescription] = useState('');
   const [inputFields, setInputFields] = useState(['']);
   const [addModeDatesAvailable, setAddModeDatesAvailable] = useState(['']); 
@@ -44,7 +43,7 @@ const Package = () => {
     setInputFields(item.inputs || ['']);
     setEditModeDatesAvailable(item.datesAvailable || ['']);
     setGoodForStocks(item.goodForStocks || '');
-    setPlacesToVisit(item.placesToVisit || '');
+    setPlacesToVisit(item.placesToVisit || ['']);
   };
   
 
@@ -97,19 +96,19 @@ const Package = () => {
 
   const updateItem = async () => {
     try {
-      const updatedItem = {
+      await savePackage({
+        id: editingItemId,
         name: editItemName,
         price: parseFloat(editItemPrice),
-        category: editItemCategory,
+        category: editNewCategory || editItemCategory,
         description: editItemDescription,
         inputs: inputFields,
-        datesAvailable: editModeDatesAvailable, 
+        datesAvailable: editModeDatesAvailable,
         goodForStocks: parseInt(goodForStocks),
         placesToVisit: placesToVisit,
-        note: note 
-      };
-  
-      await updateDoc(doc(db, 'Package', editingItemId), updatedItem);
+        note,
+        imageUrl: items.find((item) => item.id === editingItemId)?.imageUrl,
+      });
       console.log('Item updated successfully');
   
 
@@ -117,13 +116,14 @@ const Package = () => {
       setEditItemName('');
       setEditItemPrice('');
       setEditItemCategory('');
+      setEditNewCategory('');
       setEditItemDescription('');
       setGoodForStocks('');
       setPlacesToVisit('');
       setInputFields(['']);
       setEditModeDatesAvailable(['']);
   
-      fetchItems();
+      await fetchItems();
     } catch (error) {
       console.error('Error updating item:', error);
     }
@@ -132,12 +132,7 @@ const Package = () => {
 
   const fetchItems = async () => {
     try {
-      const querySnapshot = await getDocs(collection(db, 'Package'));
-      const fetchedItems = [];
-      querySnapshot.forEach((doc) => {
-        fetchedItems.push({ id: doc.id, ...doc.data() });
-      });
-      setItems(fetchedItems);
+      setItems(await loadPackages());
     } catch (error) {
       console.error('Error fetching items:', error);
     }
@@ -150,10 +145,7 @@ const Package = () => {
 
   const uploadImage = async (file) => {
     try {
-      const storageRef = ref(storage, 'images/' + file.name);
-      const snapshot = await uploadBytesResumable(storageRef, file);
-      const downloadURL = await getDownloadURL(snapshot.ref);
-      return downloadURL;
+      return await uploadCatalogImage(file);
     } catch (error) {
       console.error('Error uploading image:', error);
       throw error;
@@ -170,7 +162,7 @@ const Package = () => {
 
       const imageUrl = await uploadImage(image);
       const categoryToAdd = newCategory ? newCategory : itemCategory;
-      const newItem = {
+      await savePackage({
         name: itemName,
         price: parseFloat(itemPrice),
         category: categoryToAdd,
@@ -180,10 +172,8 @@ const Package = () => {
         datesAvailable: addModeDatesAvailable,
         goodForStocks: parseInt(goodForStocks),
         placesToVisit: placesToVisit,
-        note: note 
-      };
-
-      await addDoc(collection(db, 'Package'), newItem);
+        note,
+      });
       console.log('Item added successfully to the database');
 
       if (newCategory) {
@@ -206,7 +196,7 @@ const Package = () => {
       setInputFields(['']);
       setAddModeDatesAvailable(['']);
 
-      fetchItems();
+      await fetchItems();
     } catch (error) {
       console.error('Error adding item:', error);
     }
@@ -214,7 +204,7 @@ const Package = () => {
 
   const deleteItem = async (id) => {
     try {
-      await deleteDoc(doc(db, 'Package', id));
+      await deletePackage(id);
       console.log('Item deleted successfully');
       fetchItems();
     } catch (error) {
@@ -485,7 +475,7 @@ const Package = () => {
             <label className="block font-bold mb-1">Category:</label>
             <div className="flex">
               <select
-                value={editItemCategory}
+                value={editNewCategory}
                 onChange={(e) => setEditItemCategory(e.target.value)}
                 className="border border-gray-300 rounded-md py-1 px-2 mr-2"
               >
@@ -537,7 +527,7 @@ const Package = () => {
             <label className="block font-bold mb-1">Places to Visit:</label>
             <textarea
               value={placesToVisit}
-              onChange={(e) => SetPlacesToVisit(e.target.value)}
+              onChange={(e) => setPlacesToVisit(e.target.value)}
               className="border border-gray-300 rounded-md py-1 px-2"
             />
           </div>

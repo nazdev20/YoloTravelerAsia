@@ -1,27 +1,18 @@
 // src/components/ConfirmationModal.js
 
-import { signInWithPopup } from 'firebase/auth';
-import { auth, provider } from '../../config/firebase-config';
-import { useNavigate } from 'react-router-dom';
+import { useState } from 'react';
+import { useAuth } from '../../hooks/useAuth';
 import { BsGoogle } from 'react-icons/bs';
 const ConfirmationModal = ({ message, onConfirm, onCancel }) => {
-  const navigate = useNavigate();
+  const { signInWithGoogle: startGoogleSignIn } = useAuth();
+  const [error, setError] = useState('');
 
-  const signInWithGoogle = async () => {
+  const handleSignIn = async () => {
     try {
-      const result = await signInWithPopup(auth, provider);
-      const authInfo = {
-        userID: result.user.uid,
-        name: result.user.displayName,
-        profilePhoto: result.user.photoURL,
-        isAuth: true,
-      };
-      localStorage.setItem("auth", JSON.stringify(authInfo));
-      navigate("/");
-      window.location.reload(); 
+      if (onConfirm) await onConfirm();
+      else await startGoogleSignIn();
     } catch (error) {
-      console.error("Error signing in with Google:", error.message);
-      
+      setError(error.message);
     }
   };
 
@@ -29,9 +20,10 @@ const ConfirmationModal = ({ message, onConfirm, onCancel }) => {
     <div className="fixed inset-0 flex items-center justify-center bg-gray-500 bg-opacity-50 z-50">
       <div className="bg-white p-6 rounded-md shadow-lg flex flex-col items-center">
         <p className="text-lg mb-4">{message}</p>
+        {error && <p className="mb-3 text-sm text-red-700">{error}</p>}
         <div className="flex justify-center items-center">
           <button
-            onClick={signInWithGoogle}
+            onClick={handleSignIn}
             className="flex items-center bg-blue-500 hover:bg-blue-600 text-white font-semibold px-4 py-2 rounded-md mr-2"
           >
          <  BsGoogle />  Sign in with Google

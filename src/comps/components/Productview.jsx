@@ -1,8 +1,7 @@
 import AOS from 'aos';
 import 'aos/dist/aos.css';
 import { useState, useEffect } from 'react';
-import { db } from '../../config/firebase-config';
-import { getDocs, collection } from 'firebase/firestore';
+import { loadProducts } from '../../lib/catalog';
 import Popup from './Productpopup';
 
 const ItemDisplay = () => {
@@ -16,12 +15,7 @@ const ItemDisplay = () => {
 
   const fetchItems = async () => {
     try {
-      const querySnapshot = await getDocs(collection(db, 'Product'));
-      const fetchedItems = [];
-      querySnapshot.forEach((doc) => {
-        fetchedItems.push({ id: doc.id, ...doc.data() });
-      });
-      setItems(fetchedItems);
+      setItems(await loadProducts());
     } catch (error) {
       console.error('Error fetching items:', error);
     }
@@ -55,7 +49,7 @@ const ItemDisplay = () => {
                 <p className="text-lg font-semibold">Destination: {item.name}</p>
                 <p className="text-md">{item.category}</p>
                 <p className="text-md overflow-hidden max-h-16">
-                  Description: {item.description.length > 100 ? (
+                  Description: {(item.description ?? '').length > 100 ? (
                     <>
                       {item.description.slice(0, 100)}...
                       <span className="text-blue-500 cursor-pointer" onClick={() => handleItemClick(item)}> See more</span>

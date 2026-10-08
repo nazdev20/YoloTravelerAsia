@@ -1,52 +1,36 @@
-import { addDoc, collection, serverTimestamp } from 'firebase/firestore';
-import { db } from '../config/firebase-config';
-import { useGetUserInfo } from './useGetUserInfo';
+import { useAuth } from './useAuth';
+import { supabase } from '../config/supabase';
 
 export const useAddTransaction = () => {
-  const transactionCollectionRef = collection(db, 'cart');
-  const { userID } = useGetUserInfo();
-
-  const formatDate = (date) => {
-    const options = { year: 'numeric', month: 'short', day: '2-digit' };
-    return new Date(date).toLocaleDateString('en-US', options);
-  };
+  const { user } = useAuth();
 
   const addTransaction = async ({
-    name,
-    description,
-    price,
-    totalAmountToPay,
-    imageUrl,
-    startDate,
-    endDate,
-    Agebracket,
+    itemId,
+    type,
     amountToPay,
     quantity,
+    details,
   }) => {
-    if (!userID) {
-      throw new Error('User is not authenticated');
-    }
+    if (!user) throw new Error('Please sign in before adding items to your cart.');
+    if (!itemId || !['product', 'package'].includes(type)) throw new Error('Invalid cart item.');
 
-    try {
-      await addDoc(transactionCollectionRef, {
-        userID,
-        name,
-        description,
-        price,
-        totalAmountToPay,
-        imageUrl,
-        startDate: formatDate(startDate),
-        endDate: formatDate(endDate),
-        Agebracket,
-        amountToPay,
-        quantity,
-        createdAt: serverTimestamp(),
-      });
-      console.log('Transaction added successfully');
-    } catch (error) {
-      console.error('Error adding transaction:', error);
-      throw error;
-    }
+    const { data: cart, error: cartError } = await supabase
+      .from('carts')
+      .upsert({ user_id: user.id }, { onConflict: 'user_id' })
+      .select('id')
+      .single();
+    if (cartError) throw cartError;
+
+    const { error } = await supabase.from('cart_items').insert({
+      cart_id: cart.id,
+      product_id: type === 'product' ? itemId : null,
+      package_id: type === 'package' ? itemId : null,
+      quantity,
+      amount_to_pay: amountToPay,
+      details,
+    });
+    if (error) throw error;
+    return { success: true };
   };
 
   return { addTransaction };

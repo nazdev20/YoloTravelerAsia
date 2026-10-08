@@ -1,75 +1,23 @@
 /* eslint-disable react/prop-types */
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import ConfirmationModal from '../components/confirmationmodal';
 import { useAddTransaction } from '../../hooks/Addtocartpackage';
 import { useAuth } from '../../hooks/useAuth';
-import { auth, provider, db } from '../../config/firebase-config';
-import { useNavigate } from 'react-router-dom';
-import { signInWithPopup } from 'firebase/auth';
-import { doc, getDoc, collection, getDocs, query, where } from 'firebase/firestore';
 
 export default function Popup({ item, onClose }) {
-  const navigate = useNavigate();
   const { addTransaction } = useAddTransaction();
-  const { user } = useAuth();
+  const { user, signInWithGoogle } = useAuth();
   const [selectedCategory, setSelectedCategory] = useState('adult');
   const [quantity, setQuantity] = useState(0);
   const [showSignInConfirmation, setShowSignInConfirmation] = useState(false);
-  const [totalAmountToPay, setTotalAmountToPay] = useState(0);
   const [selectedDate, setSelectedDate] = useState('');
-  const [goodForStocks, setGoodForStocks] = useState('');
+  const goodForStocks = item.goodForStocks ?? '';
   const discountPercentage = 5;
+  const totalAmountToPay = quantity > 0
+    ? Number(item.price ?? 0) * quantity * (selectedCategory === 'adult' ? 1 : 1 - discountPercentage / 100)
+    : 0;
 
-  useEffect(() => {
-    fetchItemDetails();
-  }, []);
-
-  useEffect(() => {
-    calculateAmountToPay();
-  }, [selectedCategory, quantity, item.price, selectedDate]);
-
-  const fetchItemDetails = async () => {
-    const itemRef = doc(db, 'items', item.id);
-    const itemSnapshot = await getDoc(itemRef);
-
-    if (itemSnapshot.exists()) {
-      const itemData = itemSnapshot.data();
-      setGoodForStocks(itemData.goodforstocks);
-    } else {
-      console.log("No such document!");
-    }
-  };
-
-  const calculateAmountToPay = () => {
-    let pricePerDay = item.price;
-    let totalAmount = pricePerDay * quantity;
-
-    if (totalAmount === 0 || quantity === 0) {
-      setTotalAmountToPay(0);
-    } else {
-      if (selectedCategory !== 'adult') {
-        const discountAmount = (totalAmount * discountPercentage) / 100;
-        totalAmount -= discountAmount;
-      }
-
-      setTotalAmountToPay(totalAmount);
-    }
-  };
-
-  const checkExistingRecord = async (itemName, date, category) => {
-    const transactionsRef = collection(db, 'cart');
-    const formattedDate = new Date(date).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: '2-digit' });
-    const q = query(
-      transactionsRef,
-      where('name', '==', itemName),
-      where('date', '==', formattedDate),
-      where('category', '==', category)
-    );
-    const querySnapshot = await getDocs(q);
-    return !querySnapshot.empty;
-  };
-
-  const handleAddToCart = async (itemName, imageUrl, pricePerDay) => {
+  const handleAddToCart = async (itemName, imageUrl) => {
     try {
       if (!user) {
         setShowSignInConfirmation(true);
@@ -85,50 +33,24 @@ export default function Popup({ item, onClose }) {
         throw new Error('Please select a date');
       }
 
-      const dateObj = new Date(selectedDate);
-
-      const existingRecord = await checkExistingRecord(itemName, selectedDate, selectedCategory);
-      if (existingRecord) {
-        alert('Record already exists');
-        return;
-      }
-
-      const result = await addTransaction({
-        name: itemName,
-        description: 'Added to cart',
-        imageUrl: imageUrl,
-        category: selectedCategory,
-        price: pricePerDay,
-        amountToPay: amountToPay,
-        date: dateObj,
+      await addTransaction({
+        itemId: item.id,
+        type: 'package',
+        amountToPay: amountToPay / quantity,
         quantity: quantity,
+        details: {
+          name: itemName,
+          description: item.description,
+          imageUrl,
+          category: selectedCategory,
+          selectedDate: new Date(selectedDate).toISOString(),
+          bookingTotal: amountToPay,
+        },
       });
-
-      if (result.success) {
-        alert(`Added ${itemName} to cart`);
-        onClose();
-      } else {
-        alert(result.message);
-      }
+      alert(`Added ${itemName} to cart`);
+      onClose();
     } catch (error) {
       alert(error.message);
-    }
-  };
-
-  const signInWithGoogle = async () => {
-    try {
-      const results = await signInWithPopup(auth, provider);
-      const authInfo = {
-        userID: results.user.uid,
-        name: results.user.displayName,
-        profilePhoto: results.user.photoURL,
-        isAuth: true,
-      };
-      localStorage.setItem("auth", JSON.stringify(authInfo));
-      navigate("/");
-      window.location.reload();
-    } catch (error) {
-      console.log(error);
     }
   };
 
@@ -204,7 +126,7 @@ export default function Popup({ item, onClose }) {
                   onChange={(e) => setSelectedDate(e.target.value)}
                 >
                   <option value="">Select available date</option>
-                  {item.datesAvailable.map((date) => (
+                  {(item.datesAvailable ?? []).map((date) => (
                     <option key={date} value={date}>
                       {new Date(date).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: '2-digit' })}
                     </option>
@@ -220,7 +142,7 @@ export default function Popup({ item, onClose }) {
             </div>
           </div>
           <div className="mt-auto bg-gray-100 px-4 py-3 flex justify-end">
-            <button onClick={() => handleAddToCart(item.name, item.imageUrl, item.price)} className="w-full py-2 px-4 bg-blue-500 text-white rounded-md hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
+            <button onClick={() => handleAddToCart(item.name, item.imageUrl)} className="w-full py-2 px-4 bg-blue-500 text-white rounded-md hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
               Add to Cart
             </button>
           </div>
