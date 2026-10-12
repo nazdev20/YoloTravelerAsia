@@ -70,7 +70,7 @@ const CheckoutForm = ({ cartItems, totalAmount, onCancel }) => {
   
       if (paymentImage) {
         const path = `${user.id}/${crypto.randomUUID()}-${paymentImage.name.replace(/[^a-zA-Z0-9._-]/g, '-')}`;
-        const { error: uploadError } = await supabase.storage.from('payment-images').upload(path, paymentImage);
+        const { error: uploadError } = await supabase.storage.from('yta-payment-images').upload(path, paymentImage);
         if (uploadError) throw uploadError;
         paymentImagePath = path;
       }
