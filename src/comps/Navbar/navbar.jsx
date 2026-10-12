@@ -17,6 +17,7 @@ const Navlinks = [
 const Navbar = () => {
     const { user, signInWithGoogle, signOut } = useAuth();
     const [showMenu, setShowMenu] = useState(false);
+    const [authError, setAuthError] = useState('');
     const navigate = useNavigate();
     const navbarRef = useRef(null);
 
@@ -76,17 +77,18 @@ const Navbar = () => {
                     <button
                         onClick={async () => {
                             try {
+                                setAuthError('');
                                 if (user) await signOut();
                                 else await signInWithGoogle();
                             } catch (error) {
-                                console.error('Authentication failed:', error);
+                                setAuthError(error?.message || 'Google sign-in failed. Please try again.');
                             }
                         }}
                         className="hidden md:block text-white font-semibold"
                     >
                         {user ? 'Sign out' : 'Sign in'}
                     </button>
-
+                    {authError && <p role="alert" className="absolute right-3 top-full mt-2 max-w-xs rounded-md bg-white px-3 py-2 text-sm font-medium text-red-700 shadow-lg">{authError}</p>}
 
                     <button type="button" aria-label={showMenu ? 'Close navigation menu' : 'Open navigation menu'} aria-expanded={showMenu} onClick={toggleMenu} className="md:hidden flex h-10 w-10 shrink-0 items-center justify-center rounded-md text-white hover:bg-white/10 focus:outline-none focus:ring-2 focus:ring-white">
                         {showMenu ? <HiX size={28} /> : <HiMenuAlt3 size={28} />}
