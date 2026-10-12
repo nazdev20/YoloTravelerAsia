@@ -8,7 +8,7 @@ import { FaMapMarkerAlt } from 'react-icons/fa';
 
 const Popup = ({ item, onClose }) => {
   const { addTransaction } = useAddTransaction();
-  const { user, signInWithGoogle } = useAuth();
+  const { user } = useAuth();
   const [startDate, setStartDate] = useState(new Date());
   const [endDate, setEndDate] = useState(new Date());
   const [prices, setPrices] = useState({
@@ -246,7 +246,6 @@ const Popup = ({ item, onClose }) => {
       {showSignInConfirmation && (
         <ConfirmationModal
           message="You need to sign in before adding to cart."
-          onConfirm={signInWithGoogle}
           onCancel={() => setShowSignInConfirmation(false)}
           zIndex={60}
         />
