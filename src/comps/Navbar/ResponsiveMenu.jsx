@@ -1,67 +1,77 @@
 /* eslint-disable react/prop-types */
-/* eslint-disable no-unused-vars */
 import React from 'react';
 import { Link } from 'react-router-dom';
-import { FaUserCircle } from 'react-icons/fa';
 import { useAuth } from '../../hooks/useAuth';
 
-const Navlinks = [
-  { id: 1, name: 'Home', link: '/' },
-  { id: 2, name: 'About', link: '/about' },
-  { id: 3, name: 'Features', link: '/features' },
-  { id: 4, name: 'Blog', link: '/blog' },
-  { id: 5, name: 'Contacts', link: '/contact' }
-];
-
-const ResponsiveMenu = ({ showMenu }) => {
+const ResponsiveMenu = ({ showMenu, toggleMenu, links = [] }) => {
   const { user, signInWithGoogle, signOut } = useAuth();
 
   const handleAuth = async () => {
     try {
       if (user) await signOut();
       else await signInWithGoogle();
-    } catch (err) {
-      console.error(err);
+      toggleMenu();
+    } catch (error) {
+      console.error('Authentication failed:', error);
     }
   };
 
   return (
-    <div className={`fixed bottom-0 top-0 z-20 flex h-screen w-[55%] flex-col justify-between
-      bg-white dark:bg-dark dark:text-white px-8 pb-6 pt-16 text-black
-      duration-300 md:hidden rounded-r-xl shadow-md
-      ${showMenu ? "left-0" : '-left-[100%]'}`}>
-      <div>
-        <div className='flex items-center justify-start gap-3'>
-          {user?.user_metadata?.avatar_url && <img src={user.user_metadata.avatar_url} alt="Profile" className="h-10 w-10 object-cover rounded-full" />}
-          <div>
-            <h1 className='text-lg'>Hello {user?.user_metadata?.name ?? user?.email ?? 'traveler'}</h1>
-            <h1 className='text-sm text-slate-500'>{user ? 'Signed in' : 'Guest'}</h1>
+    <>
+      {showMenu && (
+        <button
+          type="button"
+          aria-label="Close navigation menu"
+          onClick={toggleMenu}
+          className="fixed inset-0 z-[55] bg-black/45 md:hidden"
+        />
+      )}
+      <aside
+        aria-label="Mobile navigation"
+        aria-hidden={!showMenu}
+        className={"fixed right-0 top-0 z-[60] flex h-dvh w-[min(84vw,340px)] flex-col justify-between overflow-y-auto rounded-l-2xl bg-white px-6 pb-6 pt-20 text-slate-900 shadow-2xl transition-transform duration-300 ease-in-out dark:bg-dark dark:text-white md:hidden " + (showMenu ? "translate-x-0" : "translate-x-full")}
+      >
+        <div>
+          <div className="flex items-center gap-3 border-b border-slate-200 pb-5 dark:border-slate-700">
+            {user?.user_metadata?.avatar_url && (
+              <img src={user.user_metadata.avatar_url} alt="Profile" className="h-11 w-11 rounded-full object-cover" />
+            )}
+            <div className="min-w-0">
+              <p className="truncate text-base font-semibold">Hello {user?.user_metadata?.name ?? user?.email ?? 'traveler'}</p>
+              <p className="text-sm text-slate-500 dark:text-slate-400">{user ? 'Signed in' : 'Guest'}</p>
+            </div>
           </div>
-        </div>
-        <nav className='mt-12'>
-          <ul>
-            {Navlinks.map(({ id, name, link }) => (
-              <li key={id} className='py-4'>
-                <Link to={link} className='text-lg font-medium text-black dark:text-white duration-300'>
-                  {name}
-                </Link>
+          <nav className="mt-5">
+            <ul className="space-y-1">
+              {links.map(({ id, name, link }) => (
+                <li key={id}>
+                  <Link
+                    to={link}
+                    onClick={toggleMenu}
+                    className="block rounded-lg px-3 py-3 text-base font-medium transition-colors hover:bg-teal-50 hover:text-teal-800 dark:hover:bg-slate-800 dark:hover:text-teal-300"
+                  >
+                    {name}
+                  </Link>
+                </li>
+              ))}
+              <li>
+                <button
+                  type="button"
+                  onClick={handleAuth}
+                  className="block w-full rounded-lg px-3 py-3 text-left text-base font-medium transition-colors hover:bg-teal-50 hover:text-teal-800 dark:hover:bg-slate-800 dark:hover:text-teal-300"
+                >
+                  {user ? 'Sign out' : 'Sign in with Google'}
+                </button>
               </li>
-            ))}
-            <li className='py-4'>
-              <button onClick={handleAuth} className='text-lg font-medium text-black dark:text-white duration-300'>
-                {user ? 'Sign Out' : 'Sign In with Google'}
-              </button>
-            </li>
-          </ul>
-        </nav>
-      </div>
-      <div className='footer'>
-        <h1 className='text-lg'>
-          Made by <a href="https://github.com/nazdev20" className='text-blue-500 hover:underline'>Naz</a>
-        </h1>
-      </div>
-    </div>
+            </ul>
+          </nav>
+        </div>
+        <p className="pt-6 text-sm text-slate-500 dark:text-slate-400">
+          Made by <a href="https://github.com/nazdev20" className="text-teal-700 hover:underline dark:text-teal-300">Naz</a>
+        </p>
+      </aside>
+    </>
   );
-}
+};
 
 export default ResponsiveMenu;
