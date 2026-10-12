@@ -36,25 +36,36 @@ const TransactionList = () => {
     }
   };
 
-  const updateQuantity = async (itemId, newQuantity) => {
+  const updateQuantity = async (itemId, requestedQuantity) => {
     try {
       const updatedItem = cartItems.find(item => item.id === itemId);
+      if (!updatedItem) throw new Error('Item not found in cart.');
+      // Product bookings contain an age-bracket breakdown, so their participant
+      // count must be changed in the booking form rather than independently here.
+      if (updatedItem.productId) return;
 
-      if (!updatedItem) {
-        console.error('Item not found in cart:', itemId);
-        return;
-      }
+      const newQuantity = Math.max(1, Math.floor(Number(requestedQuantity) || 1));
+      const addonsTotal = (updatedItem.selectedAddOns ?? []).reduce(
+        (sum, addon) => sum + Number(addon.price || 0) * Number(addon.quantity || 0), 0
+      );
+      const { id, productId, packageId, quantity, amountToPay, name, imageUrl, description, ...details } = updatedItem;
+      const nextDetails = {
+        ...details,
+        bookingTotal: Number(updatedItem.amountToPay) * newQuantity + addonsTotal,
+      };
 
-      const { error } = await supabase.from('cart_items').update({ quantity: newQuantity }).eq('id', itemId);
+      const { error } = await supabase
+        .from('cart_items')
+        .update({ quantity: newQuantity, details: nextDetails })
+        .eq('id', itemId);
       if (error) throw error;
 
-      setCartItems(prevCartItems =>
-        prevCartItems.map(item =>
-          item.id === itemId ? { ...item, quantity: newQuantity } : item
-        )
-      );
+      setCartItems(prevCartItems => prevCartItems.map(item =>
+        item.id === itemId ? { ...item, quantity: newQuantity, bookingTotal: nextDetails.bookingTotal } : item
+      ));
     } catch (error) {
       console.error('Error updating quantity:', error);
+      alert('Could not update quantity. Please try again.');
     }
   };
 
@@ -76,14 +87,19 @@ const TransactionList = () => {
     }
   };
 
-  const calculateTotalAmount = () => {
-    return selectedItems.reduce((total, itemId) => {
-      const item = cartItems.find(item => item.id === itemId);
-      if (!item) return total;
-      const addonsTotal = (item.selectedAddOns ?? []).reduce((sum, addon) => sum + Number(addon.price) * addon.quantity, 0);
-      return total + Number(item.amountToPay) * item.quantity + addonsTotal;
-    }, 0);
+  const calculateItemTotal = (item) => {
+    const unitPrice = Number(item.amountToPay) || 0;
+    const quantity = Number(item.quantity) || 0;
+    const addonsTotal = (item.selectedAddOns ?? []).reduce(
+      (sum, addon) => sum + Number(addon.price || 0) * Number(addon.quantity || 0), 0
+    );
+    return unitPrice * quantity + addonsTotal;
   };
+
+  const calculateTotalAmount = () => selectedItems.reduce((total, itemId) => {
+    const item = cartItems.find(cartItem => cartItem.id === itemId);
+    return total + (item ? calculateItemTotal(item) : 0);
+  }, 0);
 
   return (
     <>
@@ -117,13 +133,13 @@ const TransactionList = () => {
                     <p className="text-xl font-semibold">Subtotal: ₱{calculateTotalAmount().toFixed(2)}</p>
                   </div>
                   {cartItems.map(item => (
-                    <div key={item.id} className="flex items-center justify-between border-t border-b py-4">
+                    <div key={item.id} className="flex flex-col gap-4 border-t border-b py-4 sm:flex-row sm:items-center sm:justify-between">
                       <div className="flex items-center">
                         <input type="checkbox" className="mr-2" checked={selectedItems.includes(item.id)} onChange={() => handleCheckboxChange(item.id)} />
                         <img src={item.imageUrl} alt={item.name} className="w-16 h-16 object-cover mr-4" />
                         <div>
                           <h3 className="text-lg font-bold">{item.name}</h3>
-                          <p className="text-gray-700">Price: ₱{item.amountToPay}</p>
+                          <p className="text-gray-700">Unit price: ₱{Number(item.amountToPay).toFixed(2)}</p>
                           {item.startDate && <p className="text-gray-700">Start Date: {new Date(item.startDate).toLocaleDateString()}</p>}
                           {item.endDate && <p className="text-gray-700">End Date: {new Date(item.endDate).toLocaleDateString()}</p>}
                           {item.selectedDate && <p className="text-gray-700">Date: {new Date(item.selectedDate).toLocaleDateString()}</p>}
