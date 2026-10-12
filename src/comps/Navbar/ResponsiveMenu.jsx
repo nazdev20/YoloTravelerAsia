@@ -47,7 +47,11 @@ const ResponsiveMenu = ({ showMenu, toggleMenu, links = [] }) => {
                 <li key={id}>
                   <Link
                     to={link}
-                    onClick={toggleMenu}
+                    onClick={() => {
+                      toggleMenu();
+                      const target = document.getElementById(String(id));
+                      if (target) target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                    }}
                     className="block rounded-lg px-3 py-3 text-base font-medium transition-colors hover:bg-teal-50 hover:text-teal-800 dark:hover:bg-slate-800 dark:hover:text-teal-300"
                   >
                     {name}
