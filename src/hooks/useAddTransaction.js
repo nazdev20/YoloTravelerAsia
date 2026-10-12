@@ -13,6 +13,14 @@ export const useAddTransaction = () => {
   }) => {
     if (!user) throw new Error('Please sign in before adding items to your cart.');
     if (!itemId || !['product', 'package'].includes(type)) throw new Error('Invalid cart item.');
+    const normalizedQuantity = Number(quantity);
+    const normalizedAmount = Number(amountToPay);
+    if (!Number.isSafeInteger(normalizedQuantity) || normalizedQuantity < 1) {
+      throw new Error('Quantity must be a whole number greater than zero.');
+    }
+    if (!Number.isFinite(normalizedAmount) || normalizedAmount < 0) {
+      throw new Error('The item price is invalid. Please review the booking total.');
+    }
 
     const { data: cart, error: cartError } = await supabase
       .from('carts')
@@ -25,8 +33,8 @@ export const useAddTransaction = () => {
       cart_id: cart.id,
       product_id: type === 'product' ? itemId : null,
       package_id: type === 'package' ? itemId : null,
-      quantity,
-      amount_to_pay: amountToPay,
+      quantity: normalizedQuantity,
+      amount_to_pay: normalizedAmount,
       details,
     });
     if (error) throw error;
