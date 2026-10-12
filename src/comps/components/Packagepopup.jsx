@@ -13,9 +13,8 @@ export default function Popup({ item, onClose }) {
   const [selectedDate, setSelectedDate] = useState('');
   const goodForStocks = item.goodForStocks ?? '';
   const discountPercentage = 5;
-  const totalAmountToPay = quantity > 0
-    ? Number(item.price ?? 0) * quantity * (selectedCategory === 'adult' ? 1 : 1 - discountPercentage / 100)
-    : 0;
+  const unitPrice = Number(item.price ?? 0) * (selectedCategory === 'adult' ? 1 : 1 - discountPercentage / 100);
+  const totalAmountToPay = quantity > 0 ? unitPrice * quantity : 0;
 
   const handleAddToCart = async (itemName, imageUrl) => {
     try {
@@ -134,11 +133,18 @@ export default function Popup({ item, onClose }) {
                   ))}
                 </select>
               </div>
-              <div className="flex items-center mt-4">
-                <label htmlFor="totalAmountToPay" className="text-sm text-gray-500">
-                  Total Amount to Pay:
-                </label>
-                <span className="ml-2 text-lg font-semibold text-gray-800">₱{totalAmountToPay.toFixed(2)}</span>
+              <div className="mt-4 rounded-lg bg-slate-50 p-3">
+                <div className="flex items-center justify-between gap-3 text-sm text-gray-600">
+                  <span>Price per person</span>
+                  <span>₱{unitPrice.toFixed(2)}</span>
+                </div>
+                {selectedCategory !== 'adult' && (
+                  <p className="mt-1 text-xs text-teal-700">{discountPercentage}% discount applied for {selectedCategory} booking.</p>
+                )}
+                <div className="mt-2 flex items-center justify-between gap-3 border-t pt-2">
+                  <label htmlFor="totalAmountToPay" className="font-semibold text-gray-700">Total ({quantity} {quantity === 1 ? 'person' : 'people'})</label>
+                  <span className="text-lg font-bold text-gray-900">₱{totalAmountToPay.toFixed(2)}</span>
+                </div>
               </div>
             </div>
           </div>
