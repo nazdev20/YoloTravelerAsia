@@ -1,42 +1,62 @@
 import React from 'react';
-import Spline from '@splinetool/react-spline';
 
 function Aboutus() {
   return (
-    <div className="bg-white py-20 px-11 " >
-      <div className="container mx-auto px-11 md:px-12 flex flex-col   justify-start">
-        <h1 className="text-4xl font-bold text-center text-[#008080] mb-6">About YOLO Traveler Asia</h1>
-        <p className="text-gray-600 text-lg md:text-xl mb-12 max-w-full" data-aos="fade-up">
-  Welcome to YOLO Traveler Asia, your premier travel agency dedicated to offering unique and memorable travel experiences. Our team is committed to providing personalized services to ensure your journey is seamless and enjoyable. Whether you're looking for adventure, relaxation, or cultural exploration, we are here to craft an unforgettable journey tailored to your desires.
-  
-  At YOLO Traveler Asia, we believe that travel is more than just visiting new places; it is about experiencing different cultures, making lifelong memories, and creating stories to share. Our expert team of travel enthusiasts is passionate about curating bespoke itineraries that cater to your interests, preferences, and comfort.
-  <br /><br />
-  From the serene beaches of Thailand to the bustling streets of Tokyo, our diverse range of destinations and activities ensures there’s something for everyone. We prioritize sustainability and ethical travel, ensuring that our adventures not only enrich your life but also support the local communities and environments we visit.
+    <section className="bg-white px-5 py-14 sm:px-8 sm:py-16 lg:px-10 lg:py-20">
+      <div className="mx-auto max-w-6xl">
+        <div className="mx-auto mb-10 max-w-3xl text-center sm:mb-14">
+          <p className="mb-3 text-sm font-semibold uppercase tracking-[0.2em] text-[#ff6809]">Get to know us</p>
+          <h1 className="text-3xl font-bold leading-tight text-[#008080] sm:text-4xl lg:text-5xl">
+            About YOLO Traveler Asia
+          </h1>
+          <p className="mx-auto mt-5 max-w-2xl text-base leading-7 text-gray-600 sm:text-lg sm:leading-8">
+            We create memorable travel experiences across Asia, bringing together local culture, beautiful destinations, and adventures tailored to you.
+          </p>
+        </div>
 
-  Let us take you on a journey beyond the ordinary, where each moment is designed to amaze and inspire. Join us at YOLO Traveler Asia, and let’s embark on an adventure of a lifetime together.
-</p>
+        <div className="grid items-center gap-8 lg:grid-cols-[1.1fr_0.9fr] lg:gap-14">
+          <div className="space-y-4 text-base leading-7 text-gray-600">
+            <p>
+              Welcome to YOLO Traveler Asia, your travel partner for unique and memorable journeys. We help you explore at your own pace, whether you are looking for adventure, relaxation, or cultural discovery.
+            </p>
+            <p>
+              From serene beaches to lively city streets, we aim to make every trip seamless, personal, and worth remembering.
+            </p>
+            <p>
+              We also value responsible travel that respects local communities and the places that make every destination special.
+            </p>
+          </div>
 
-        <div className="flex flex-col md:flex-row items-center justify-center md:justify-center w-full"data-aos="fade-up">
-          <div className="w-full md:w-1/2 lg:w-1/3 px-4 mb-8">
-            <div className="p-6 shadow-lg rounded-lg">
-              <h2 className="text-2xl font-bold text-gray-800 mb-4">Our Mission</h2>
-              <p className="text-gray-600">
-                At YOLO Traveler Asia, our mission is to make every trip an extraordinary experience. Whether you're seeking adventure, relaxation, or cultural exploration, we tailor each journey to your preferences. Our goal is to ensure that your travel experience is seamless, enriching, and truly unforgettable.
+          <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-1">
+            <article className="rounded-2xl border border-gray-100 bg-gray-50 p-6 shadow-sm sm:p-7">
+              <div className="mb-4 flex h-11 w-11 items-center justify-center rounded-xl bg-[#008080]/10 text-[#008080]">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" className="h-6 w-6" aria-hidden="true">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 3v3m0 12v3M3 12h3m12 0h3M5.64 5.64l2.12 2.12m8.48 8.48 2.12 2.12m0-12.72-2.12 2.12m-8.48 8.48-2.12 2.12" />
+                  <circle cx="12" cy="12" r="5" />
+                </svg>
+              </div>
+              <h2 className="mb-2 text-xl font-bold text-gray-900 sm:text-2xl">Our Mission</h2>
+              <p className="text-sm leading-6 text-gray-600 sm:text-base sm:leading-7">
+                To make every trip extraordinary through personalized travel options, thoughtful service, and experiences that connect people with the places they visit.
               </p>
-            </div>
-          </div>
-          <div className="w-full md:w-1/2 lg:w-1/3 px-4 mb-8">
-            <div className="p-6 shadow-lg rounded-lg">
-              <h2 className="text-2xl font-bold text-gray-800 mb-4">Our Vision</h2>
-              <p className="text-gray-600">
-                We envision a world where travel is accessible, affordable, and sustainable. Our goal is to connect people with the wonders of Asia and create lifelong memories. We strive to be a bridge to the diverse cultures and landscapes that Asia has to offer, fostering understanding and appreciation through travel.
+            </article>
+
+            <article className="rounded-2xl border border-gray-100 bg-gray-50 p-6 shadow-sm sm:p-7">
+              <div className="mb-4 flex h-11 w-11 items-center justify-center rounded-xl bg-[#ff6809]/10 text-[#ff6809]">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" className="h-6 w-6" aria-hidden="true">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M2.5 12s3.5-6 9.5-6 9.5 6 9.5 6-3.5 6-9.5 6-9.5-6-9.5-6Z" />
+                  <circle cx="12" cy="12" r="2.5" />
+                </svg>
+              </div>
+              <h2 className="mb-2 text-xl font-bold text-gray-900 sm:text-2xl">Our Vision</h2>
+              <p className="text-sm leading-6 text-gray-600 sm:text-base sm:leading-7">
+                To make travel across Asia more accessible and responsible while inspiring cultural appreciation and lifelong memories.
               </p>
-            </div>
+            </article>
           </div>
-         
         </div>
       </div>
-    </div>
+    </section>
   );
 }
 
