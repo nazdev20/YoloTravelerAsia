@@ -1,5 +1,5 @@
 /* eslint-disable react/prop-types */
-import React, { useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../hooks/useAuth';
 
@@ -7,6 +7,13 @@ const ResponsiveMenu = ({ showMenu, toggleMenu, links = [] }) => {
   const { user, signOut } = useAuth();
   const [authError, setAuthError] = useState('');
   const navigate = useNavigate();
+  const menuRef = useRef(null);
+
+  useEffect(() => {
+    if (menuRef.current) {
+      menuRef.current.inert = !showMenu;
+    }
+  }, [showMenu]);
 
   const handleAuth = async () => {
     if (!user) {
@@ -26,7 +33,7 @@ const ResponsiveMenu = ({ showMenu, toggleMenu, links = [] }) => {
   return (
     <>
       {showMenu && <button type="button" aria-label="Close navigation menu" onClick={toggleMenu} className="fixed inset-0 z-[55] bg-black/45 md:hidden" />}
-      <aside aria-label="Mobile navigation" aria-hidden={!showMenu} className={"fixed right-0 top-0 z-[60] flex h-dvh w-[min(84vw,340px)] flex-col justify-between overflow-y-auto rounded-l-2xl bg-white px-6 pb-6 pt-20 text-slate-900 shadow-2xl transition-transform duration-300 ease-in-out dark:bg-dark dark:text-white md:hidden " + (showMenu ? "translate-x-0" : "translate-x-full")}>
+      <aside ref={menuRef} aria-label="Mobile navigation" aria-hidden={!showMenu} className={"fixed right-0 top-0 z-[60] flex h-dvh w-[min(84vw,340px)] flex-col justify-between overflow-y-auto rounded-l-2xl bg-white px-6 pb-6 pt-20 text-slate-900 shadow-2xl transition-transform duration-300 ease-in-out dark:bg-dark dark:text-white md:hidden " + (showMenu ? "translate-x-0" : "translate-x-full")}>
         <div>
           <div className="flex items-center gap-3 border-b border-slate-200 pb-5 dark:border-slate-700">
             {user?.user_metadata?.avatar_url && <img src={user.user_metadata.avatar_url} alt="Profile" className="h-11 w-11 rounded-full object-cover" />}
