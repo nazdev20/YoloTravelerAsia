@@ -6,7 +6,7 @@ import { useAuth } from '../../hooks/useAuth';
 
 export default function Popup({ item, onClose }) {
   const { addTransaction } = useAddTransaction();
-  const { user, signInWithGoogle } = useAuth();
+  const { user } = useAuth();
   const [selectedCategory, setSelectedCategory] = useState('adult');
   const [quantity, setQuantity] = useState(0);
   const [showSignInConfirmation, setShowSignInConfirmation] = useState(false);
@@ -51,11 +51,6 @@ export default function Popup({ item, onClose }) {
     } catch (error) {
       alert(error.message);
     }
-  };
-
-  const handleSignInConfirmation = async () => {
-    setShowSignInConfirmation(false);
-    await signInWithGoogle();
   };
 
   const handleCancelSignInConfirmation = () => {
@@ -158,7 +153,6 @@ export default function Popup({ item, onClose }) {
       {showSignInConfirmation && (
         <ConfirmationModal
           message="Please sign in to add items to the cart."
-          onConfirm={handleSignInConfirmation}
           onCancel={handleCancelSignInConfirmation}
         />
       )}
