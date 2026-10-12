@@ -22,17 +22,20 @@ export const useGetTransactions = () => {
         console.error('Error fetching cart items:', error);
         return;
       }
-      if (active) setCartItems((data?.cart_items ?? []).map((row) => ({
-        id: row.id,
-        productId: row.product_id,
-        packageId: row.package_id,
-        quantity: row.quantity,
-        amountToPay: Number(row.amount_to_pay),
-        ...(row.details ?? {}),
-        name: row.details?.name ?? row.products?.name ?? row.packages?.name,
-        imageUrl: row.details?.imageUrl ?? row.products?.image_url ?? row.packages?.image_url,
-        description: row.details?.description ?? row.products?.description ?? row.packages?.description,
-      })));
+      if (active) setCartItems((data?.cart_items ?? []).map((row) => {
+        const details = row.details ?? {};
+        return {
+          ...details,
+          id: row.id,
+          productId: row.product_id,
+          packageId: row.package_id,
+          quantity: Number(row.quantity),
+          amountToPay: Number(row.amount_to_pay),
+          name: details.name ?? row.products?.name ?? row.packages?.name,
+          imageUrl: details.imageUrl ?? row.products?.image_url ?? row.packages?.image_url,
+          description: details.description ?? row.products?.description ?? row.packages?.description,
+        };
+      }));
     };
 
     fetchCartItems();
