@@ -136,8 +136,8 @@ const CheckoutForm = ({ cartItems, totalAmount, onCancel }) => {
   };
   
   return (
-    <div className="flex items-center justify-center lg:flex-row lg:space-x-8 p-8 ml-16 w-[80%]">
-      <div className="lg:w-3/5 bg-white rounded-lg shadow p-6">
+    <div className="mx-auto flex w-full max-w-4xl items-center justify-center px-3 py-4 sm:px-6">
+      <div className="w-full rounded-lg bg-white p-4 shadow sm:p-6">
         <h2 className="text-2xl font-bold mb-6">Booking Checkout</h2>
         <div className="mb-4 border rounded-lg overflow-hidden">
           {cartItems.map((item) => (
@@ -147,7 +147,7 @@ const CheckoutForm = ({ cartItems, totalAmount, onCancel }) => {
                 <h3 className="text-lg font-semibold">{item.name}</h3>
                 <p className="text-gray-700">{item.location}</p>
                 <p className="text-gray-700">Quantity: {item.quantity}</p>
-                <p className="text-gray-700">Price: ₱{item.amountToPay}</p>
+                <p className="text-gray-700">Unit price: ₱{Number(item.amountToPay).toFixed(2)}</p>
               </div>
             </div>
           ))}
@@ -268,7 +268,7 @@ const CheckoutForm = ({ cartItems, totalAmount, onCancel }) => {
               </div>
             </div>
             {showDeposit && (
-                <p className="text-gray-700 mt-2 font-bold">Deposit Amount you need to Pay first: ₱{totalAmount * 0.1}</p>
+                <p className="text-gray-700 mt-2 font-bold">Deposit Amount you need to Pay first: ₱{(totalAmount * 0.1).toFixed(2)}</p>
               )}
             <div className="flex items-center justify-between mt-6">
               <button
