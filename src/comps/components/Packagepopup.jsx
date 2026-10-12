@@ -25,7 +25,7 @@ export default function Popup({ item, onClose }) {
       }
 
       let amountToPay = totalAmountToPay;
-      if (isNaN(amountToPay) || amountToPay <= 0) {
+      if (!Number.isFinite(amountToPay) || amountToPay <= 0 || !Number.isSafeInteger(quantity) || quantity < 1) {
         throw new Error('Invalid amount to pay');
       }
 
@@ -64,7 +64,7 @@ export default function Popup({ item, onClose }) {
   };
 
   const handleQuantityChange = (e) => {
-    const count = Number(e.target.value);
+    const count = Math.max(0, Math.floor(Number(e.target.value) || 0));
     setQuantity(count);
   };
 
@@ -113,6 +113,7 @@ export default function Popup({ item, onClose }) {
                 <input
                   type="number"
                   min="0"
+                  step="1"
                   value={quantity}
                   onChange={handleQuantityChange}
                   className="border border-gray-300 rounded-md px-2 py-1 focus:outline-none focus:ring focus:ring-blue-500"
@@ -142,7 +143,7 @@ export default function Popup({ item, onClose }) {
             </div>
           </div>
           <div className="mt-auto bg-gray-100 px-4 py-3 flex justify-end">
-            <button onClick={() => handleAddToCart(item.name, item.imageUrl)} className="w-full py-2 px-4 bg-blue-500 text-white rounded-md hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
+            <button disabled={quantity < 1 || !selectedDate} onClick={() => handleAddToCart(item.name, item.imageUrl)} className="w-full py-2 px-4 bg-blue-500 text-white rounded-md hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:cursor-not-allowed disabled:opacity-50">
               Add to Cart
             </button>
           </div>
