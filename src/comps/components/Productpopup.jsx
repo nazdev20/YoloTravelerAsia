@@ -30,30 +30,28 @@ const Popup = ({ item, onClose }) => {
   }, [item]);
 
   const handleStartDateChange = (date) => {
+    if (!date) return;
+    const nextEndDate = date > endDate ? date : endDate;
     setStartDate(date);
-    if (date > endDate) {
-      setEndDate(date);
-    }
-    calculateAmountToPay(date, endDate, quantities);
+    if (date > endDate) setEndDate(date);
+    calculateAmountToPay(date, nextEndDate, quantities);
   };
 
   const handleEndDateChange = (date) => {
-    if (date < startDate) {
-      setStartDate(date);
-    }
+    if (!date) return;
+    const nextStartDate = date < startDate ? date : startDate;
+    if (date < startDate) setStartDate(date);
     setEndDate(date);
-    calculateAmountToPay(startDate, date, quantities);
+    calculateAmountToPay(nextStartDate, date, quantities);
   };
 
   const calculateAmountToPay = (start, end, qty, addons = addonQuantities) => {
     const oneDay = 24 * 60 * 60 * 1000;
     const startDateObj = new Date(start);
     const endDateObj = new Date(end);
-    let daysDifference = Math.ceil((endDateObj - startDateObj) / oneDay) + 1;
-
-    if (daysDifference <= 0) {
-      daysDifference = 1;
-    }
+    startDateObj.setHours(0, 0, 0, 0);
+    endDateObj.setHours(0, 0, 0, 0);
+    const daysDifference = Math.max(1, Math.round((endDateObj - startDateObj) / oneDay) + 1);
 
     const addonTotal = (item.addOns ?? []).reduce((sum, addon) => sum + Number(addon.addOnsPrice) * (addons[addon.id] ?? 0), 0);
     const total = ((prices.adult * qty.adult + prices.child * qty.child + prices.senior * qty.senior) * daysDifference) + addonTotal;
@@ -61,7 +59,7 @@ const Popup = ({ item, onClose }) => {
   };
 
   const handleQuantityChange = (category, value) => {
-    const count = Math.max(0, Number(value) || 0);
+    const count = Math.max(0, Math.floor(Number(value) || 0));
     const newQuantities = { ...quantities, [category]: count };
     setQuantities(newQuantities);
     calculateAmountToPay(startDate, endDate, newQuantities);
@@ -161,6 +159,7 @@ const Popup = ({ item, onClose }) => {
                         <input
                           type="number"
                           min="1"
+                          step="1"
                           value={quantities[category]}
                           onChange={(e) => handleQuantityChange(category, e.target.value)}
                           className="w-20 p-2 border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
@@ -185,9 +184,10 @@ const Popup = ({ item, onClose }) => {
                           aria-label={`${addon.name} quantity`}
                           type="number"
                           min="0"
+                          step="1"
                           value={addonQuantities[addon.id] ?? 0}
                           onChange={(event) => {
-                            const nextAddOns = { ...addonQuantities, [addon.id]: Math.max(0, Number(event.target.value) || 0) };
+                            const nextAddOns = { ...addonQuantities, [addon.id]: Math.max(0, Math.floor(Number(event.target.value) || 0)) };
                             setAddonQuantities(nextAddOns);
                             calculateAmountToPay(startDate, endDate, quantities, nextAddOns);
                           }}
