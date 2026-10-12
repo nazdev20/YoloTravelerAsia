@@ -45,8 +45,8 @@ export const saveCategory = async (name) => {
 export const uploadCatalogImage = async (file) => {
   const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, '-');
   const path = `${crypto.randomUUID()}-${safeName}`;
-  unwrap(await supabase.storage.from('catalog-images').upload(path, file, { upsert: false }));
-  return supabase.storage.from('catalog-images').getPublicUrl(path).data.publicUrl;
+  unwrap(await supabase.storage.from('yta-product-images').upload(path, file, { upsert: false }));
+  return supabase.storage.from('yta-product-images').getPublicUrl(path).data.publicUrl;
 };
 
 const replaceRows = async (table, productId, rows) => {
