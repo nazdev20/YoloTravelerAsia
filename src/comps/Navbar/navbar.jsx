@@ -1,6 +1,6 @@
 import { useState, useRef } from 'react';
 import { Link } from 'react-router-dom';
-import { HiMenuAlt3, HiMenuAlt1 } from 'react-icons/hi';
+import { HiMenuAlt3, HiX } from 'react-icons/hi';
 import ResponsiveMenu from './ResponsiveMenu';
 import { FaShoppingCart } from 'react-icons/fa';
 import { useNavigate } from "react-router-dom";
@@ -41,9 +41,9 @@ const Navbar = () => {
     };
     return (
         <>
-            <nav ref={navbarRef} className="flex fixed top-0 left-0 z-50 w-full bg-[#008080] p-4 sm:p-8 items-center justify-between">
-                <div className="flex items-center justify-center ml-5">
-                    <div className="text-[25px] font-bold">
+            <nav ref={navbarRef} className="flex fixed top-0 left-0 z-50 w-full bg-[#008080] px-3 py-3 sm:px-8 sm:py-5 items-center justify-between gap-3">
+                <div className="flex min-w-0 items-center justify-center">
+                    <div className="whitespace-nowrap text-[17px] sm:text-[25px] font-bold">
                         <span className='text-secondary'>Yolo</span>
                         <span className='text-primary'>Traveler</span>
                         <span className='text-fourth'>Asia</span>
@@ -66,9 +66,9 @@ const Navbar = () => {
                     </ul>
                 </div>
 
-                <div className="flex items-center space-x-3 "> <h1 className='font-bold text-white'>Cart</h1>
+                <div className="ml-auto flex shrink-0 items-center gap-3 sm:gap-4"> <h1 className='hidden sm:block font-bold text-white'>Cart</h1>
                     <FaShoppingCart
-                        className='cursor-pointer transition-all text-[#FF6F61]'
+                        className='cursor-pointer transition-all text-[#FF6F61] shrink-0'
                         size={25}
                         onClick={handleCartClick}
                        
@@ -88,13 +88,9 @@ const Navbar = () => {
                     </button>
 
 
-                    <div className="md:hidden ml-4 ">
-                        {showMenu ? (
-                            <HiMenuAlt1 onClick={toggleMenu} className='cursor-pointer transition-all' size={30} />
-                        ) : (
-                            <HiMenuAlt3 onClick={toggleMenu} className='cursor-pointer transition-all' size={30} />
-                        )}
-                    </div>
+                    <button type="button" aria-label={showMenu ? 'Close navigation menu' : 'Open navigation menu'} aria-expanded={showMenu} onClick={toggleMenu} className="md:hidden flex h-10 w-10 shrink-0 items-center justify-center rounded-md text-white hover:bg-white/10 focus:outline-none focus:ring-2 focus:ring-white">
+                        {showMenu ? <HiX size={28} /> : <HiMenuAlt3 size={28} />}
+                    </button>
                 </div>
             </nav>
             <ResponsiveMenu showMenu={showMenu} toggleMenu={toggleMenu} links={Navlinks} />
