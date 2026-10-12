@@ -48,11 +48,13 @@ const TransactionList = () => {
       const addonsTotal = (updatedItem.selectedAddOns ?? []).reduce(
         (sum, addon) => sum + Number(addon.price || 0) * Number(addon.quantity || 0), 0
       );
-      const { id, productId, packageId, quantity, amountToPay, name, imageUrl, description, ...details } = updatedItem;
-      const nextDetails = {
-        ...details,
-        bookingTotal: Number(updatedItem.amountToPay) * newQuantity + addonsTotal,
-      };
+      const nextDetails = { ...updatedItem };
+      delete nextDetails.id;
+      delete nextDetails.productId;
+      delete nextDetails.packageId;
+      delete nextDetails.quantity;
+      delete nextDetails.amountToPay;
+      nextDetails.bookingTotal = Number(updatedItem.amountToPay) * newQuantity + addonsTotal;
 
       const { error } = await supabase
         .from('cart_items')
@@ -145,10 +147,17 @@ const TransactionList = () => {
                           {item.selectedDate && <p className="text-gray-700">Date: {new Date(item.selectedDate).toLocaleDateString()}</p>}
                         </div>
                       </div>
-                      <div className="flex items-center">
-                        <label htmlFor={`quantity-${item.id}`} className="text-gray-700 mr-2">Qty:</label>
-                        <input type="number" id={`quantity-${item.id}`} value={item.quantity} onChange={(e) => updateQuantity(item.id, Math.max(1, Number.parseInt(e.target.value, 10) || 1))} min="1" className="w-12 border border-gray-300 rounded-md py-1 px-2 mr-4" />
-                        <button onClick={() => removeFromCart(item.id)} className="text-red-500">Remove</button>
+                      <div className="flex flex-wrap items-center gap-3 sm:justify-end">
+                        <div className="flex items-center gap-2">
+                          <label htmlFor={`quantity-${item.id}`} className="text-gray-700">Qty:</label>
+                          {item.packageId ? (
+                            <input type="number" id={`quantity-${item.id}`} value={item.quantity} onChange={(e) => updateQuantity(item.id, e.target.value)} min="1" step="1" className="w-16 rounded-md border border-gray-300 px-2 py-2" />
+                          ) : (
+                            <span className="min-w-8 text-center font-semibold">{item.quantity}</span>
+                          )}
+                        </div>
+                        <p className="text-sm font-semibold text-gray-700">Line total: ₱{calculateItemTotal(item).toFixed(2)}</p>
+                        <button onClick={() => removeFromCart(item.id)} className="rounded px-2 py-1 text-red-600 hover:bg-red-50">Remove</button>
                       </div>
                     </div>
                   ))}
