@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { Swiper, SwiperSlide } from 'swiper/react';
 import 'swiper/css';
 import 'swiper/css/effect-coverflow';
@@ -15,53 +15,37 @@ import slide_image_6 from './assets/pic6.jpg';
 
 const images = [slide_image_1, slide_image_2, slide_image_3, slide_image_4, slide_image_5, slide_image_6];
 
+// Next.js static image imports are objects; Vite previously exposed these as strings.
+const getImageSrc = (image) => (typeof image === 'string' ? image : image.src);
+
 function Swipe() {
   const [activeSlideIndex, setActiveSlideIndex] = useState(0);
 
-  useEffect(() => {
-    const handleResize = () => {
-      const windowHeight = window.innerHeight;
-      const windowWidth = window.innerWidth;
-      const swiperContainer = document.querySelector('.swiper-container');
-      if (swiperContainer) {
-        swiperContainer.style.height = `${windowHeight * 0.5}px`;
-        swiperContainer.style.width = `${windowWidth * 0.8}px`;
-      }
-    };
-
-    handleResize();
-    window.addEventListener('resize', handleResize);
-
-    return () => {
-      window.removeEventListener('resize', handleResize);
-    };
-  }, []);
-
   return (
-    <div className="relative flex items-center justify-center  w-full h-[75%] bg-cover bg-center transition-all duration-500 ease-in-out  mt-16 "
-      style={{ backgroundImage: `url(${images[activeSlideIndex]})` }}>
+    <section
+      className="relative isolate mt-16 flex min-h-[650px] w-full items-center justify-center overflow-hidden bg-cover bg-center md:min-h-[700px]"
+      style={{ backgroundImage: `url("${getImageSrc(images[activeSlideIndex])}")` }}
+    >
+      <div className="absolute inset-0 -z-10 bg-black/55" aria-hidden="true" />
 
-      <div className="absolute inset-0 flex flex-col items-center justify-center bg-black bg-opacity-50">
-        <div className="text-center my-8 w-full px-4">
-          <h1 className="text-3xl md:text-5xl font-bold text-white sea-waves-animation font-sans">
-            <span className="text-secondary">Seize </span> 
-            <span className="text-secondary">The </span> 
-            <span className="text-primary">Moment, </span> 
-            <span className="text-primary">Explore </span> 
+      <div className="relative z-10 flex w-full flex-col items-center justify-center px-4 py-12 text-center">
+        <div className="my-6 w-full">
+          <h1 className="sea-waves-animation font-sans text-3xl font-bold text-white md:text-5xl">
+            <span className="text-secondary">Seize </span>
+            <span className="text-secondary">The </span>
+            <span className="text-primary">Moment, </span>
+            <span className="text-primary">Explore </span>
             <span className="text-fourth">Fearlessly</span>
           </h1>
-          
-          <div className="flex justify-center mt-2 w-full">
-            <h3 className="text-lg md:text-xl text-white">
-              - YoloTravellerAsia
-            </h3>
+          <div className="mt-2 flex w-full justify-center">
+            <h3 className="text-lg text-white md:text-xl">- YoloTravellerAsia</h3>
           </div>
         </div>
 
         <Swiper
-          effect={'coverflow'}
-          grabCursor={true}
-          centeredSlides={true}
+          effect="coverflow"
+          grabCursor
+          centeredSlides
           loop={images.length >= 4}
           slidesPerView={1}
           breakpoints={{
@@ -74,32 +58,28 @@ function Swipe() {
             depth: 100,
             modifier: 2.5,
           }}
-          navigation={{
-            nextEl: '.swiper-button-next',
-            prevEl: '.swiper-button-prev',
-            clickable: true,
-          }}
           autoplay={{
-            delay: 2000, 
+            delay: 2000,
             disableOnInteraction: false,
           }}
           modules={[EffectCoverflow, Navigation, Autoplay]}
-          className="swiper-container w-max-lg h-max mb-5"
+          className="w-full max-w-6xl pb-8"
           onSlideChange={(swiper) => setActiveSlideIndex(swiper.realIndex)}
         >
           {images.map((image, index) => (
-            <SwiperSlide key={index} className="flex items-center justify-center md:w-[30rem] md:h-[20rem] ">
+            <SwiperSlide key={index} className="flex h-[190px] items-center justify-center sm:h-[240px] md:h-[320px]">
               <img
-                src={image}
-                alt={`slide_image_${index + 1}`}
-                className="w-full h-full object-cover rounded-2xl"
+                src={getImageSrc(image)}
+                alt={`Travel destination slide ${index + 1}`}
+                className="h-full w-full rounded-2xl object-cover"
               />
             </SwiperSlide>
           ))}
         </Swiper>
-        <div className="absolute bottom-0 w-full h-[100px] bg-gradient-to-b from-transparent to-black pointer-events-none"></div>
       </div>
-    </div>
+
+      <div className="pointer-events-none absolute inset-x-0 bottom-0 h-[100px] bg-gradient-to-b from-transparent to-black/70" />
+    </section>
   );
 }
 
