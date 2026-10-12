@@ -1,3 +1,5 @@
+"use client";
+
 import { BrowserRouter as Router, Route, Routes, Navigate } from 'react-router-dom';
 import { useEffect } from 'react';
 import AOS from 'aos';
@@ -52,7 +54,7 @@ function App() {
 
   return (
     <div className="App">
-      <Router basename="/YoloTravelerAsia">
+      <Router>
         <Routes>
           <Route path="/" element={<MainLayout />} />
           <Route path="/auth" element={<WithNavbar><AuthComponent /></WithNavbar>} />
