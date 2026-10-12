@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { supabase, signInWithGoogle } from '../config/supabase';
+import { supabase } from '../config/supabase';
 
 export const useAuth = () => {
   const [user, setUser] = useState(null);
@@ -22,7 +22,10 @@ export const useAuth = () => {
 
   return {
     user,
-    signInWithGoogle,
+    signIn: async (email, password) => {
+      const { error } = await supabase.auth.signInWithPassword({ email, password });
+      if (error) throw error;
+    },
     signOut: async () => {
       const { error } = await supabase.auth.signOut();
       if (error) throw error;
