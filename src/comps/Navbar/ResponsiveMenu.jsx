@@ -1,18 +1,20 @@
 /* eslint-disable react/prop-types */
-import React from 'react';
+import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../../hooks/useAuth';
 
 const ResponsiveMenu = ({ showMenu, toggleMenu, links = [] }) => {
   const { user, signInWithGoogle, signOut } = useAuth();
+  const [authError, setAuthError] = useState('');
 
   const handleAuth = async () => {
     try {
+      setAuthError('');
       if (user) await signOut();
       else await signInWithGoogle();
       toggleMenu();
     } catch (error) {
-      console.error('Authentication failed:', error);
+      setAuthError(error?.message || 'Google sign-in failed. Please try again.');
     }
   };
 
@@ -58,6 +60,7 @@ const ResponsiveMenu = ({ showMenu, toggleMenu, links = [] }) => {
                   </Link>
                 </li>
               ))}
+              {authError && <li><p role="alert" className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700 dark:bg-red-950 dark:text-red-200">{authError}</p></li>}
               <li>
                 <button
                   type="button"
