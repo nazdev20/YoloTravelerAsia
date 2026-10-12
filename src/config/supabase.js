@@ -14,15 +14,3 @@ export const supabase = createClient(
   supabaseAnonKey || 'missing-anon-key',
   { db: { schema: 'YTA' }, auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: true } }
 );
-
-export const signInWithGoogle = async () => {
-  const redirectTo = `${window.location.origin}${import.meta.env.BASE_URL}`;
-  const { error } = await supabase.auth.signInWithOAuth({
-    provider: 'google',
-    options: {
-      redirectTo,
-      queryParams: { prompt: 'select_account' },
-    },
-  });
-  if (error) throw error;
-};
