@@ -62,8 +62,12 @@ function Swipe() {
           effect={'coverflow'}
           grabCursor={true}
           centeredSlides={true}
-          loop={true}
-          slidesPerView={'auto'}
+          loop={images.length >= 4}
+          slidesPerView={1}
+          breakpoints={{
+            640: { slidesPerView: 2 },
+            1024: { slidesPerView: 3 },
+          }}
           coverflowEffect={{
             rotate: 0,
             stretch: 0,
