@@ -38,7 +38,7 @@ const ResponsiveMenu = ({ showMenu, toggleMenu, links = [] }) => {
             <Link to="/" onClick={toggleMenu} className="flex min-w-0 items-center gap-3" aria-label="YoloTravelerAsia home">
               <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-[#008080] text-xl text-white shadow-sm">✦</span>
               <span className="min-w-0">
-                <span className="block truncate text-lg font-extrabold tracking-tight"><span className="text-secondary">Yolo</span>Traveler<span className="text-fourth">Asia</span></span>
+                <span className="block truncate text-lg font-extrabold tracking-tight"><span className="text-secondary">Yolo</span><span className="text-primary">Traveler</span><span className="text-fourth">Asia</span></span>
                 <span className="block text-xs font-medium tracking-wide text-slate-500 dark:text-slate-400">YOUR NEXT JOURNEY STARTS HERE</span>
               </span>
             </Link>
