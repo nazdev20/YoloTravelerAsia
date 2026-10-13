@@ -6,12 +6,12 @@ const CheckoutForm = ({ cartItems, totalAmount, onCancel }) => {
   const [name, setName] = useState('');
   const [address, setAddress] = useState('');
   const [email, setEmail] = useState('');
-  const [paymentImage, setPaymentImage] = useState(null);
   const [termsChecked, setTermsChecked] = useState(false);
   const [selectedDate, setSelectedDate] = useState('');
-  const [selectedPaymentMethod, setSelectedPaymentMethod] = useState('');
-  const [showDeposit, setShowDeposit] = useState(false); 
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [errorMessage, setErrorMessage] = useState('');
   const { user } = useAuth();
+
   useEffect(() => {
     if (user) {
       setEmail(user.email ?? '');
@@ -23,66 +23,40 @@ const CheckoutForm = ({ cartItems, totalAmount, onCancel }) => {
     if (cartItems.length > 0) {
       const selectedItem = cartItems[0];
       const dateToFormat = selectedItem.selectedDate || selectedItem.date || selectedItem.startDate;
-      if (dateToFormat) {
-        setSelectedDate(new Date(dateToFormat).toISOString());
-      }
+      if (dateToFormat) setSelectedDate(new Date(dateToFormat).toISOString());
     }
   }, [cartItems]);
 
-  const handlePaymentImageChange = (e) => {
-    const file = e.target.files[0];
-    if (file) {
-      setPaymentImage(file);
-    }
-  };
-
-  const handleTermsCheckboxChange = (e) => {
-    const isChecked = e.target.checked;
-    setTermsChecked(isChecked);
-    setShowDeposit(isChecked); 
-  };
-
-  const handlePaymentMethodChange = (e) => {
-    setSelectedPaymentMethod(e.target.value);
-  };
+  const depositAmount = Math.round(Number(totalAmount) * 10) / 100;
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-  
+    setErrorMessage('');
+
     if (!termsChecked) {
-      alert('Please accept the terms and conditions to proceed.');
+      setErrorMessage('Please accept the terms and conditions to continue.');
       return;
     }
-  
-    if (!paymentImage) {
-      alert('Please upload your payment confirmation screenshot.');
+    if (!name.trim() || !address.trim() || !email.trim() || cartItems.length === 0 || !(Number(totalAmount) > 0)) {
+      setErrorMessage('Please check your booking details and try again.');
       return;
     }
-  
-    if (!name.trim() || !address.trim() || !email.trim() || cartItems.length === 0 || !totalAmount || !selectedDate.trim()) {
-      alert('One or more fields are missing');
+    if (!user) {
+      setErrorMessage('Please sign in before checking out.');
       return;
     }
-  
+
+    setIsSubmitting(true);
     try {
-      if (!user) throw new Error('Please sign in before checking out.');
-      let paymentImagePath = '';
-  
-      if (paymentImage) {
-        const path = `${user.id}/${crypto.randomUUID()}-${paymentImage.name.replace(/[^a-zA-Z0-9._-]/g, '-')}`;
-        const { error: uploadError } = await supabase.storage.from('yta-payment-images').upload(path, paymentImage);
-        if (uploadError) throw uploadError;
-        paymentImagePath = path;
-      }
-  
+      // Save the booking details first. Payment is completed on PayMongo's hosted page.
       const { data: order, error: orderError } = await supabase.from('orders').insert({
         user_id: user.id,
         customer_name: name.trim(),
         customer_email: email.trim(),
         customer_address: address.trim(),
-        payment_method: selectedPaymentMethod,
-        total_amount: totalAmount,
-        payment_image_url: paymentImagePath,
+        payment_method: 'PayMongo',
+        total_amount: Number(totalAmount),
+        payment_image_url: '',
         selected_date: selectedDate ? new Date(selectedDate).toISOString() : null,
       }).select('id').single();
       if (orderError) throw orderError;
@@ -122,171 +96,92 @@ const CheckoutForm = ({ cartItems, totalAmount, onCancel }) => {
         }
       }
 
-      alert('Thank you for booking. Please wait until we process your needs.');
-      for (const item of cartItems) {
-        const { error: deleteError } = await supabase.from('cart_items').delete().eq('id', item.id);
-        if (deleteError) throw deleteError;
+      const response = await fetch('/api/payments/test-checkout', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          orderId: String(order.id),
+          amount: depositAmount,
+          customerEmail: email.trim(),
+          itemNames: cartItems.map((item) => item.name),
+        }),
+      });
+      const result = await response.json();
+      if (!response.ok || !result.checkoutUrl) {
+        throw new Error(result.error || 'Could not start PayMongo checkout.');
       }
-  
-      window.location.reload(); 
+
+      // Keep cart contents until payment is confirmed by the payment integration.
+      window.location.assign(result.checkoutUrl);
     } catch (error) {
-      console.error('Error creating order in Supabase: ', error);
-      alert('There was an error processing your checkout. Please try again.');
+      console.error('PayMongo checkout failed:', error);
+      setErrorMessage(error instanceof Error ? error.message : 'Checkout failed. Please try again.');
+      setIsSubmitting(false);
     }
   };
-  
+
   return (
     <div className="mx-auto flex w-full max-w-4xl items-center justify-center px-3 py-4 sm:px-6">
       <div className="w-full rounded-lg bg-white p-4 shadow sm:p-6">
-        <h2 className="text-2xl font-bold mb-6">Booking Checkout</h2>
-        <div className="mb-4 border rounded-lg overflow-hidden">
+        <h2 className="mb-2 text-2xl font-bold">Booking Checkout</h2>
+        <p className="mb-6 text-sm text-gray-600">Complete your booking details, then pay the required 10% deposit securely on PayMongo.</p>
+        <div className="mb-4 overflow-hidden rounded-lg border">
           {cartItems.map((item) => (
-            <div key={item.id} className="flex items-center p-4 border-b">
-              <img src={item.imageUrl} alt={item.name} className="w-24 h-24 object-cover mr-4" />
+            <div key={item.id} className="flex items-center border-b p-4 last:border-b-0">
+              <img src={item.imageUrl} alt={item.name} className="mr-4 h-20 w-20 rounded object-cover" />
               <div>
-                <h3 className="text-lg font-semibold">{item.name}</h3>
+                <h3 className="font-semibold">{item.name}</h3>
                 <p className="text-gray-700">{item.location}</p>
                 <p className="text-gray-700">Quantity: {item.quantity}</p>
-                <p className="text-gray-700">Unit price: ₱{Number(item.amountToPay).toFixed(2)}</p>
+                <p className="text-gray-700">₱{Number(item.amountToPay).toFixed(2)} each</p>
               </div>
             </div>
           ))}
+          <div className="flex justify-between border-t bg-gray-50 p-4 font-semibold">
+            <span>Booking total</span><span>₱{Number(totalAmount).toFixed(2)}</span>
+          </div>
+          <div className="flex justify-between p-4 text-lg font-bold">
+            <span>10% deposit due now</span><span>₱{depositAmount.toFixed(2)}</span>
+          </div>
         </div>
 
-        <div className="bg-white rounded-lg shadow p-6 mt-8">
-          <h2 className="text-2xl font-bold mb-6">Booking Details</h2>
-          <form onSubmit={handleSubmit}>
-            <div className="mb-4">
-              <label className="block text-gray-700 text-sm font-bold mb-2" htmlFor="name">
-                Name
-              </label>
-              <input
-                type="text"
-                id="name"
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                className="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline"
-                required
-              />
-            </div>
-            <div className="mb-4">
-              <label className="block text-gray-700 text-sm font-bold mb-2" htmlFor="address">
-                Address
-              </label>
-              <input
-                type="text"
-                id="address"
-                value={address}
-                onChange={(e) => setAddress(e.target.value)}
-                className="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline"
-                required
-              />
-            </div>
-            <div className="mb-4">
-              <label className="block text-gray-700 text-sm font-bold mb-2" htmlFor="email">
-                Email
-              </label>
-              <input
-                type="email"
-                id="email"
-                value={email}
-                readOnly
-                className="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline bg-gray-200"
-              />
-            </div>
-            <div className="mb-4">
-              <label className="block text-gray-700 text-sm font-bold mb-2" htmlFor="paymentMethod">
-                Payment Method
-              </label>
-              <select
-                id="paymentMethod"
-                value={selectedPaymentMethod}
-                onChange={handlePaymentMethodChange}
-                className="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline"
-                required
-              >
-                <option value="">Select Payment Method</option>
-                <option value="GCash">GCash</option>
-                <option value="PayPal">PayPal</option>
-                <option value="PayMaya">PayMaya</option>
-                <option value="CreditCard">Credit Card</option>
-              </select>
-            </div>
-            <div className="mb-4">
-              <label className="block text-gray-700 text-sm font-bold mb-2" htmlFor="selectedDate">
-                Selected Date
-              </label>
-              <input
-                type="text"
-                id="selectedDate"
-                value={selectedDate}
-                readOnly
-                className="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline bg-gray-200"
-              />
-            </div>
-            <div className="mb-4">
-              <label className="block text-gray-700 text-sm font-bold mb-2" htmlFor="paymentImage">
-                Upload Payment Confirmation Screenshot
-              </label>
-              <input
-                type="file"
-                id="paymentImage"
-                onChange={handlePaymentImageChange}
-                className="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline"
-                required
-              />
-            </div>
-            <div className="mb-4">
-              <label className="block text-gray-700 text-sm font-bold mb-2">
-                Terms and Conditions
-              </label>
-              <p className="text-gray-600 mb-2">
-                Thank you for choosing to book with us! Here’s what you need to know:
-              </p>
-              <ul className="list-disc pl-5 text-gray-600">
-                <li className="mb-1">
-                  A refundable deposit of 10% of the total amount is required to secure your booking. This deposit will be deducted from your overall balance.
-                </li>
-                <li className="mb-1">
-                  The remaining balance must be paid after we process your booking.
-                </li>
-              </ul>
-            
-              <h2 className="text-lg font-semibold mt-2">We look forward to hosting you! If you have any questions, feel free to reach out to our support team.</h2>
-              <div className="flex items-center mt-2">
-                <input
-                  type="checkbox"
-                  id="terms"
-                  checked={termsChecked}
-                  onChange={handleTermsCheckboxChange}
-                  className="mr-2 leading-tight"
-                  required
-                />
-                <label className="text-sm" htmlFor="terms">
-                  I have read and agree to the terms and conditions.
-                </label>
-              </div>
-            </div>
-            {showDeposit && (
-                <p className="text-gray-700 mt-2 font-bold">Deposit Amount you need to Pay first: ₱{(totalAmount * 0.1).toFixed(2)}</p>
-              )}
-            <div className="flex items-center justify-between mt-6">
-              <button
-                type="submit"
-                className="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline"
-              >
-                Checkout
-              </button>
-              <button
-                type="button"
-                onClick={onCancel}
-                className="bg-red-500 hover:bg-red-700 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline"
-              >
-                Cancel
-              </button>
-            </div>
-          </form>
-        </div>
+        <form onSubmit={handleSubmit}>
+          <div className="mb-4">
+            <label className="mb-2 block text-sm font-bold text-gray-700" htmlFor="name">Name</label>
+            <input id="name" value={name} onChange={(e) => setName(e.target.value)} className="w-full rounded border px-3 py-2 text-gray-700" required />
+          </div>
+          <div className="mb-4">
+            <label className="mb-2 block text-sm font-bold text-gray-700" htmlFor="address">Address</label>
+            <input id="address" value={address} onChange={(e) => setAddress(e.target.value)} className="w-full rounded border px-3 py-2 text-gray-700" required />
+          </div>
+          <div className="mb-4">
+            <label className="mb-2 block text-sm font-bold text-gray-700" htmlFor="email">Email</label>
+            <input id="email" type="email" value={email} readOnly className="w-full rounded border bg-gray-100 px-3 py-2 text-gray-700" required />
+          </div>
+
+          <div className="mb-5 rounded-lg border border-blue-100 bg-blue-50 p-4">
+            <h3 className="font-semibold text-blue-900">Payment powered by PayMongo</h3>
+            <p className="mt-1 text-sm text-blue-800">You will be redirected to PayMongo's secure hosted checkout to choose an available payment method such as GCash, Maya, card, or QRPh. No screenshot upload is required.</p>
+          </div>
+
+          <div className="mb-5">
+            <h3 className="mb-2 font-semibold">Terms and Conditions</h3>
+            <p className="mb-2 text-gray-600">A refundable deposit of 10% of the total amount is required to secure your booking. The remaining balance is due after the booking is processed.</p>
+            <label className="flex items-start gap-2 text-sm">
+              <input type="checkbox" checked={termsChecked} onChange={(e) => setTermsChecked(e.target.checked)} className="mt-1" required />
+              <span>I have read and agree to the terms and conditions.</span>
+            </label>
+          </div>
+
+          {errorMessage && <p role="alert" className="mb-4 rounded bg-red-50 p-3 text-sm text-red-700">{errorMessage}</p>}
+
+          <div className="mt-6 flex items-center justify-between gap-3">
+            <button type="submit" disabled={isSubmitting} className="rounded bg-orange-500 px-4 py-2 font-bold text-white hover:bg-orange-600 disabled:cursor-not-allowed disabled:opacity-60">
+              {isSubmitting ? 'Preparing PayMongo checkout…' : 'Pay deposit with PayMongo'}
+            </button>
+            <button type="button" onClick={onCancel} disabled={isSubmitting} className="rounded bg-gray-200 px-4 py-2 font-bold text-gray-800 hover:bg-gray-300 disabled:opacity-60">Cancel</button>
+          </div>
+        </form>
       </div>
     </div>
   );
