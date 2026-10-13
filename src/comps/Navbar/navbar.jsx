@@ -56,7 +56,7 @@ const Navbar = () => {
         <>
             <nav ref={navbarRef} className="flex fixed top-0 left-0 z-50 w-full items-center justify-between gap-3 border-b bg-[#008080] px-3 py-3 text-white sm:px-8 sm:py-5">
                 <Link to="/" aria-label="YoloTravelerAsia home" className="flex min-w-0 items-center gap-2">
-                    <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-[#9a542a] text-lg text-white shadow-sm">✦</span>
+                    <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-[#008080] text-lg text-white shadow-sm">✦</span>
                     <span className="whitespace-nowrap text-[17px] font-extrabold tracking-tight sm:text-[25px]">
                         <span className="text-secondary">Yolo</span><span className="text-primary">Traveler</span><span className="text-fourth">Asia</span>
                     </span>
@@ -69,6 +69,7 @@ const Navbar = () => {
                     </ul>
                 </div>
                 <div className="ml-auto flex shrink-0 items-center gap-3 sm:gap-4">
+                    <h1 className="hidden font-bold text-white sm:block">Cart</h1>
                     <button type="button" onClick={handleCartClick} aria-label={cartCount > 0 ? `Open cart, ${cartCount} items` : 'Open cart'} className="relative flex h-10 w-10 items-center justify-center rounded-xl text-[#FF6F61] transition-colors hover:bg-white/10 focus:outline-none focus:ring-2 focus:ring-white">
                         <FaShoppingCart size={22} />
                         {cartCount > 0 && <span aria-label={`${cartCount} items in cart`} className="absolute -right-1 -top-1 flex h-5 min-w-5 items-center justify-center rounded-full bg-[#FF6F61] px-1 text-[11px] font-bold leading-none text-white ring-2 ring-[#008080]">{cartCount > 99 ? '99+' : cartCount}</span>}
