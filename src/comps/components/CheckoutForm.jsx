@@ -33,33 +33,27 @@ const CheckoutForm = ({ cartItems, totalAmount, onCancel }) => {
     e.preventDefault();
     setErrorMessage('');
 
-    if (!termsChecked) {
-      setErrorMessage('Please accept the terms and conditions to continue.');
-      return;
-    }
+    if (!termsChecked) return setErrorMessage('Please accept the terms and conditions to continue.');
     if (!name.trim() || !address.trim() || !email.trim() || cartItems.length === 0 || !(Number(totalAmount) > 0)) {
-      setErrorMessage('Please check your booking details and try again.');
-      return;
+      return setErrorMessage('Please check your booking details and try again.');
     }
-    if (!user) {
-      setErrorMessage('Please sign in before checking out.');
-      return;
-    }
+    if (!user) return setErrorMessage('Please sign in before checking out.');
 
     setIsSubmitting(true);
+    let orderId;
+    let paymentId;
+
     try {
-      // Save the booking details first. Payment is completed on PayMongo's hosted page.
       const { data: order, error: orderError } = await supabase.from('orders').insert({
         user_id: user.id,
         customer_name: name.trim(),
         customer_email: email.trim(),
         customer_address: address.trim(),
-        payment_method: 'PayMongo',
         total_amount: Number(totalAmount),
-        payment_image_url: '',
         selected_date: selectedDate ? new Date(selectedDate).toISOString() : null,
       }).select('id').single();
       if (orderError) throw orderError;
+      orderId = order.id;
 
       for (const item of cartItems) {
         const { data: orderItem, error: itemError } = await supabase.from('order_items').insert({
@@ -75,43 +69,52 @@ const CheckoutForm = ({ cartItems, totalAmount, onCancel }) => {
 
         const selectedAddOns = item.selectedAddOns ?? [];
         if (selectedAddOns.length) {
-          const { error: addonsError } = await supabase.from('order_item_addons').insert(selectedAddOns.map((addon) => ({
-            order_item_id: orderItem.id,
-            addon_id: addon.id,
-            addon_name: addon.name,
-            addon_price: addon.price,
-            quantity: addon.quantity,
+          const { error } = await supabase.from('order_item_addons').insert(selectedAddOns.map((addon) => ({
+            order_item_id: orderItem.id, addon_id: addon.id, addon_name: addon.name,
+            addon_price: addon.price, quantity: addon.quantity,
           })));
-          if (addonsError) throw addonsError;
+          if (error) throw error;
         }
 
         const inputValues = item.inputValues ?? [];
         if (inputValues.length) {
-          const { error: inputsError } = await supabase.from('order_item_inputs').insert(inputValues.map((input) => ({
-            order_item_id: orderItem.id,
-            input_name: input.name,
-            input_value: input.value,
+          const { error } = await supabase.from('order_item_inputs').insert(inputValues.map((input) => ({
+            order_item_id: orderItem.id, input_name: input.name, input_value: input.value,
           })));
-          if (inputsError) throw inputsError;
+          if (error) throw error;
         }
       }
+
+      const { data: payment, error: paymentError } = await supabase.from('payments').insert({
+        order_id: order.id,
+        provider: 'paymongo',
+        amount: depositAmount,
+        currency: 'PHP',
+        status: 'pending',
+        metadata: { customer_email: email.trim() },
+      }).select('id').single();
+      if (paymentError) throw paymentError;
+      paymentId = payment.id;
 
       const response = await fetch('/api/payments/test-checkout', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           orderId: String(order.id),
+          paymentId: String(payment.id),
           amount: depositAmount,
           customerEmail: email.trim(),
           itemNames: cartItems.map((item) => item.name),
         }),
       });
       const result = await response.json();
-      if (!response.ok || !result.checkoutUrl) {
-        throw new Error(result.error || 'Could not start PayMongo checkout.');
-      }
+      if (!response.ok || !result.checkoutUrl) throw new Error(result.error || 'Could not start PayMongo checkout.');
 
-      // Keep cart contents until payment is confirmed by the payment integration.
+      const { error: updateError } = await supabase.from('payments').update({
+        checkout_session_id: result.checkoutSessionId,
+      }).eq('id', payment.id);
+      if (updateError) throw updateError;
+
       window.location.assign(result.checkoutUrl);
     } catch (error) {
       console.error('PayMongo checkout failed:', error);
@@ -129,58 +132,20 @@ const CheckoutForm = ({ cartItems, totalAmount, onCancel }) => {
           {cartItems.map((item) => (
             <div key={item.id} className="flex items-center border-b p-4 last:border-b-0">
               <img src={item.imageUrl} alt={item.name} className="mr-4 h-20 w-20 rounded object-cover" />
-              <div>
-                <h3 className="font-semibold">{item.name}</h3>
-                <p className="text-gray-700">{item.location}</p>
-                <p className="text-gray-700">Quantity: {item.quantity}</p>
-                <p className="text-gray-700">₱{Number(item.amountToPay).toFixed(2)} each</p>
-              </div>
+              <div><h3 className="font-semibold">{item.name}</h3><p className="text-gray-700">{item.location}</p><p className="text-gray-700">Quantity: {item.quantity}</p><p className="text-gray-700">₱{Number(item.amountToPay).toFixed(2)} each</p></div>
             </div>
           ))}
-          <div className="flex justify-between border-t bg-gray-50 p-4 font-semibold">
-            <span>Booking total</span><span>₱{Number(totalAmount).toFixed(2)}</span>
-          </div>
-          <div className="flex justify-between p-4 text-lg font-bold">
-            <span>10% deposit due now</span><span>₱{depositAmount.toFixed(2)}</span>
-          </div>
+          <div className="flex justify-between border-t bg-gray-50 p-4 font-semibold"><span>Booking total</span><span>₱{Number(totalAmount).toFixed(2)}</span></div>
+          <div className="flex justify-between p-4 text-lg font-bold"><span>10% deposit due now</span><span>₱{depositAmount.toFixed(2)}</span></div>
         </div>
-
         <form onSubmit={handleSubmit}>
-          <div className="mb-4">
-            <label className="mb-2 block text-sm font-bold text-gray-700" htmlFor="name">Name</label>
-            <input id="name" value={name} onChange={(e) => setName(e.target.value)} className="w-full rounded border px-3 py-2 text-gray-700" required />
-          </div>
-          <div className="mb-4">
-            <label className="mb-2 block text-sm font-bold text-gray-700" htmlFor="address">Address</label>
-            <input id="address" value={address} onChange={(e) => setAddress(e.target.value)} className="w-full rounded border px-3 py-2 text-gray-700" required />
-          </div>
-          <div className="mb-4">
-            <label className="mb-2 block text-sm font-bold text-gray-700" htmlFor="email">Email</label>
-            <input id="email" type="email" value={email} readOnly className="w-full rounded border bg-gray-100 px-3 py-2 text-gray-700" required />
-          </div>
-
-          <div className="mb-5 rounded-lg border border-blue-100 bg-blue-50 p-4">
-            <h3 className="font-semibold text-blue-900">Payment powered by PayMongo</h3>
-            <p className="mt-1 text-sm text-blue-800">You will be redirected to PayMongo's secure hosted checkout to choose an available payment method such as GCash, Maya, card, or QRPh. No screenshot upload is required.</p>
-          </div>
-
-          <div className="mb-5">
-            <h3 className="mb-2 font-semibold">Terms and Conditions</h3>
-            <p className="mb-2 text-gray-600">A refundable deposit of 10% of the total amount is required to secure your booking. The remaining balance is due after the booking is processed.</p>
-            <label className="flex items-start gap-2 text-sm">
-              <input type="checkbox" checked={termsChecked} onChange={(e) => setTermsChecked(e.target.checked)} className="mt-1" required />
-              <span>I have read and agree to the terms and conditions.</span>
-            </label>
-          </div>
-
+          <div className="mb-4"><label className="mb-2 block text-sm font-bold text-gray-700" htmlFor="name">Name</label><input id="name" value={name} onChange={(e) => setName(e.target.value)} className="w-full rounded border px-3 py-2 text-gray-700" required /></div>
+          <div className="mb-4"><label className="mb-2 block text-sm font-bold text-gray-700" htmlFor="address">Address</label><input id="address" value={address} onChange={(e) => setAddress(e.target.value)} className="w-full rounded border px-3 py-2 text-gray-700" required /></div>
+          <div className="mb-4"><label className="mb-2 block text-sm font-bold text-gray-700" htmlFor="email">Email</label><input id="email" type="email" value={email} readOnly className="w-full rounded border bg-gray-100 px-3 py-2 text-gray-700" required /></div>
+          <div className="mb-5 rounded-lg border border-blue-100 bg-blue-50 p-4"><h3 className="font-semibold text-blue-900">Payment powered by PayMongo</h3><p className="mt-1 text-sm text-blue-800">You will be redirected to PayMongo's secure hosted checkout to choose an available payment method such as GCash, Maya, card, or QRPh. No screenshot upload is required.</p></div>
+          <div className="mb-5"><h3 className="mb-2 font-semibold">Terms and Conditions</h3><p className="mb-2 text-gray-600">A refundable deposit of 10% of the total amount is required to secure your booking. The remaining balance is due after the booking is processed.</p><label className="flex items-start gap-2 text-sm"><input type="checkbox" checked={termsChecked} onChange={(e) => setTermsChecked(e.target.checked)} className="mt-1" required /><span>I have read and agree to the terms and conditions.</span></label></div>
           {errorMessage && <p role="alert" className="mb-4 rounded bg-red-50 p-3 text-sm text-red-700">{errorMessage}</p>}
-
-          <div className="mt-6 flex items-center justify-between gap-3">
-            <button type="submit" disabled={isSubmitting} className="rounded bg-orange-500 px-4 py-2 font-bold text-white hover:bg-orange-600 disabled:cursor-not-allowed disabled:opacity-60">
-              {isSubmitting ? 'Preparing PayMongo checkout…' : 'Pay deposit with PayMongo'}
-            </button>
-            <button type="button" onClick={onCancel} disabled={isSubmitting} className="rounded bg-gray-200 px-4 py-2 font-bold text-gray-800 hover:bg-gray-300 disabled:opacity-60">Cancel</button>
-          </div>
+          <div className="mt-6 flex items-center justify-between gap-3"><button type="submit" disabled={isSubmitting} className="rounded bg-orange-500 px-4 py-2 font-bold text-white hover:bg-orange-600 disabled:cursor-not-allowed disabled:opacity-60">{isSubmitting ? 'Preparing PayMongo checkout…' : 'Pay deposit with PayMongo'}</button><button type="button" onClick={onCancel} disabled={isSubmitting} className="rounded bg-gray-200 px-4 py-2 font-bold text-gray-800 hover:bg-gray-300 disabled:opacity-60">Cancel</button></div>
         </form>
       </div>
     </div>
