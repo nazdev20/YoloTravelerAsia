@@ -20,6 +20,7 @@ import Swipe from './swipingheader';
 import Ourteam from './comps/components/ourteam';
 import Destinations from './comps/components/about';
 import AuthComponent from './Auth';
+import PaymongoTestCheckout from './comps/components/PaymongoTestCheckout';
 
 const MainLayout = () => (
   <>
@@ -64,6 +65,7 @@ function App() {
           <Route path="/product" element={<WithNavbar><AdminPage /></WithNavbar>} />
           <Route path="/transactionhistory" element={<WithNavbar><TransactionHistory /></WithNavbar>} />
           <Route path="/popup" element={<WithNavbar><Popup /></WithNavbar>} />
+          <Route path="/payment-test" element={<WithNavbar><PaymongoTestCheckout /></WithNavbar>} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </Router>
